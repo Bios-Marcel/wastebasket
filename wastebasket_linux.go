@@ -8,7 +8,7 @@ import (
 )
 
 func isCommandAvailable(name string) bool {
-	return exec.Command("command", "-v", name).Run() != nil
+	return exec.Command("bash", "-c", "command", "-v", name).Run() == nil
 }
 
 //Trash moves a files or folder including its content into the systems trashbin.
