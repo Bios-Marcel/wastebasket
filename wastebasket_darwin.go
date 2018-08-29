@@ -9,7 +9,7 @@ import (
 
 //Trash moves a files or folder including its content into the systems trashbin.
 func Trash(path string) error {
-	exec.Command("trash", path)
+	return exec.Command("trash", path).Run()
 }
 
 //Empty clears the platforms trashbin.
