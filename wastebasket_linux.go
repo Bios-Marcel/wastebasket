@@ -5,10 +5,29 @@ package wastebasket
 import (
 	"errors"
 	"os/exec"
+	"syscall"
 )
 
 func isCommandAvailable(name string) bool {
-	return exec.Command("bash", "-c", "command", "-v", name).Run() == nil
+	cmd := exec.Command("bash", "-c", name)
+	cmd.Start()
+
+	err := cmd.Wait()
+	if err == nil {
+		return true
+	}
+
+	exitError, ok := err.(*exec.ExitError)
+	if !ok {
+		return false
+	}
+
+	status, ok := exitError.Sys().(syscall.WaitStatus)
+	if ok {
+		return status.ExitStatus() != 127
+	}
+
+	return true
 }
 
 //Trash moves a files or folder including its content into the systems trashbin.
