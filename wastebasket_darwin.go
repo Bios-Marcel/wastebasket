@@ -2,11 +2,14 @@
 
 package wastebasket
 
-import "errors"
+import (
+	"errors"
+	"os/exec"
+)
 
 //Trash moves a files or folder including its content into the systems trashbin.
 func Trash(path string) error {
-	return errors.New("Not supported yet")
+	exec.Command("trash", path)
 }
 
 //Empty clears the platforms trashbin.
