@@ -21,6 +21,8 @@ func TestTrashWithExistentFile(t *testing.T) {
 	if os.IsExist(error) {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
+
+	cleanup()
 }
 
 //TestTrash tests trashing a single file which doesn't exist
@@ -39,6 +41,8 @@ func TestTrashWithNonexistentFile(t *testing.T) {
 	if os.IsExist(error) {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
+
+	cleanup()
 }
 
 //TestTrash tests trashing a single file which is created beforehand
@@ -53,6 +57,8 @@ func TestTrashWithExistentFolder(t *testing.T) {
 	if os.IsExist(error) {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
+
+	cleanup()
 }
 
 //TestTrash tests trashing a single file which doesn't exist
@@ -71,6 +77,8 @@ func TestTrashWithNonexistentFolder(t *testing.T) {
 	if os.IsExist(error) {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
+
+	cleanup()
 }
 
 //TestEmpty tests emptying the systems trashbin
@@ -93,4 +101,9 @@ func writeTestDirectory(t *testing.T) {
 	if mkdirError != nil {
 		t.Errorf("Error creating test directory. (%s)", mkdirError)
 	}
+}
+
+func cleanup() {
+	os.Remove(testDirPath)
+	os.Remove(testFilePath)
 }
