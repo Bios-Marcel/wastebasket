@@ -10,7 +10,7 @@ import (
 
 //Trash moves a files or folder including its content into the systems trashbin.
 func Trash(path string) error {
-	file, fileError := os.Stat(path)
+	_, fileError := os.Stat(path)
 
 	if os.IsNotExist(fileError) {
 		return nil
