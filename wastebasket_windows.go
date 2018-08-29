@@ -11,12 +11,13 @@ import (
 //Trash moves a files or folder including its content into the systems trashbin.
 func Trash(path string) error {
 	file, fileError := os.Stat(path)
-	if fileError != nil {
-		return fileError
-	}
 
 	if os.IsNotExist(fileError) {
 		return nil
+	}
+
+	if fileError != nil {
+		return fileError
 	}
 
 	psCommand := ""
