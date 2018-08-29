@@ -1,3 +1,10 @@
+apt-run: &ref_0
+  name: Install Linux dependecies via apt.
+  command: >-
+    sudo apt-get update
+
+    sudo apt-get -y install gvfs
+
 version: 2
 jobs:
   build:
@@ -7,6 +14,8 @@ jobs:
     working_directory: /go/src/github.com/Bios-Marcel/wastebasket
     steps:
       - checkout
+
+      - run: *ref_0
 
       - run: go get -v -t -d ./...
       - run: go test -v ./...
