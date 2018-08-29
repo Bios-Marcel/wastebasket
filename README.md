@@ -1,5 +1,10 @@
 # Wastebasket
 
+| **linux** | [![CircleCI - Linux](https://circleci.com/gh/Bios-Marcel/wastebasket.svg?style=svg)](https://circleci.com/gh/Bios-Marcel/wastebasket) |
+| - | - |
+| **darwin** | [![Travis CI - Darwin](https://travis-ci.org/Bios-Marcel/wastebasket.svg?branch=master)](https://travis-ci.org/Bios-Marcel/wastebasket) |
+| **windows** | **TODO** |
+
 Wastebasket is a go library allowing you to move files into your trashbin.
 
 ## Dependencies
