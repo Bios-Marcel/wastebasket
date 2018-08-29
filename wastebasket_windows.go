@@ -27,5 +27,5 @@ func Trash(path string) error {
 
 //Empty clears the platforms trashbin.
 func Empty() error {
-	exec.Command("powershell", "-Command", "\"Clear-RecycleBin\"")
+	return exec.Command("powershell", "-Command", "\"Clear-RecycleBin\"").Run()
 }
