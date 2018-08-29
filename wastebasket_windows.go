@@ -15,6 +15,10 @@ func Trash(path string) error {
 		return fileError
 	}
 
+	if os.IsNotExist(fileError) {
+		return
+	}
+
 	psCommand := ""
 	if file.IsDir() {
 		psCommand = fmt.Sprintf("\"Add-Type -AssemblyName Microsoft.VisualBasic;[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFolder(%s, 'OnlyErrorDialogs','SendToRecycleBin')\"", path)
