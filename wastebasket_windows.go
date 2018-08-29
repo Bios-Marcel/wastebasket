@@ -16,7 +16,7 @@ func Trash(path string) error {
 	}
 
 	if os.IsNotExist(fileError) {
-		return
+		return nil
 	}
 
 	psCommand := ""
