@@ -46,9 +46,7 @@ func Trash(path string) error {
 			return nil
 		}
 
-		//the path needs to be quoted, as it otherwise takes it as multiple parameters.
-		quotedPath := "'" + path + "'"
-		return exec.Command("trash", "--", quotedPath).Run()
+		return exec.Command("trash", "--", path).Run()
 	}
 
 	return errors.New("None of the commands `gio`, `gvfs-trash` or `trash` are available")
