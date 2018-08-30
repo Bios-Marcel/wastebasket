@@ -22,7 +22,7 @@ func Trash(path string) error {
 	return exec.Command("trash", path).Run()
 }
 
-//Empty isn't supported on the darwin platform.
+//Empty clears the platforms trashbin. It uses the `Finder` app to empty the trashbin.
 func Empty() error {
-	return nil
+	return exec.Command("osascript", "-e", "tell app \"Finder\" to empty").Run()
 }
