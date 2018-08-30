@@ -8,6 +8,8 @@ import (
 
 var testFilePath = "test.txt"
 var testDirPath = "test-delete-me"
+var testFilePathWithSpaces = "te st.txt"
+var testDirPathWithSpaces = "test-del ete-me"
 
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentFile(t *testing.T) {
@@ -18,6 +20,22 @@ func TestTrashWithExistentFile(t *testing.T) {
 	}
 
 	_, error = os.Stat(testFilePath)
+	if os.IsExist(error) {
+		t.Errorf("File hasn't been deleted. (%s)", error)
+	}
+
+	cleanup()
+}
+
+//TestTrash tests trashing a single file which is created beforehand
+func TestTrashWithExistentFileWithSpaces(t *testing.T) {
+	writeTestFile(t)
+	error := Trash(testFilePathWithSpaces)
+	if error != nil {
+		t.Errorf("Error trashing file. (%s)", error)
+	}
+
+	_, error = os.Stat(testFilePathWithSpaces)
 	if os.IsExist(error) {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
@@ -54,6 +72,22 @@ func TestTrashWithExistentFolder(t *testing.T) {
 	}
 
 	_, error = os.Stat(testDirPath)
+	if os.IsExist(error) {
+		t.Errorf("File hasn't been deleted. (%s)", error)
+	}
+
+	cleanup()
+}
+
+//TestTrash tests trashing a single file which is created beforehand
+func TestTrashWithExistentFolderWithSpaces(t *testing.T) {
+	writeTestDirectory(t)
+	error := Trash(testDirPathWithSpaces)
+	if error != nil {
+		t.Errorf("Error trashing file. (%s)", error)
+	}
+
+	_, error = os.Stat(testDirPathWithSpaces)
 	if os.IsExist(error) {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
