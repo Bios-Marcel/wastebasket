@@ -6,29 +6,11 @@ import (
 	"errors"
 	"os"
 	"os/exec"
-	"syscall"
 )
 
 func isCommandAvailable(name string) bool {
-	cmd := exec.Command("bash", "-c", name)
-	cmd.Start()
-
-	err := cmd.Wait()
-	if err == nil {
-		return true
-	}
-
-	exitError, ok := err.(*exec.ExitError)
-	if !ok {
-		return false
-	}
-
-	status, ok := exitError.Sys().(syscall.WaitStatus)
-	if ok {
-		return status.ExitStatus() != 127
-	}
-
-	return true
+	_, fileError := exec.LookPath(name)
+	return fileError == nil
 }
 
 //Trash moves a file or folder including its content into the systems trashbin.
