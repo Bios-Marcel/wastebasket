@@ -1,21 +1,45 @@
-apt-run: &ref_0
-  name: Install Linux dependecies via apt.
-  command: >-
-    sudo apt-get update
-
-    sudo apt-get -y install gvfs
-
 version: 2
 jobs:
-  build:
+  build_trash_cli:
     docker:
       - image: circleci/golang:1.10
 
-    working_directory: /go/src/github.com/Bios-Marcel/wastebasket
+    working_directory: /go/src/github.com/Bios-Marcel/wastebucket
     steps:
-      - checkout
-
-      - run: *ref_0
-
+      - run: sudo apt-get update
+      - run: sudo apt-get -y install trash-cli
+      
       - run: go get -v -t -d ./...
       - run: go test -v ./...
+
+  build_gvfs:
+    docker:
+      - image: circleci/golang:1.10
+
+    working_directory: /go/src/github.com/Bios-Marcel/wastebucket
+    steps:
+      - run: sudo apt-get update
+      - run: sudo apt-get -y install gvfs gvfs-common gvfs-bin
+      
+      - run: go get -v -t -d ./...
+      - run: go test -v ./...
+
+  build_gio:
+    docker:
+      - image: circleci/golang:1.10
+
+    working_directory: /go/src/github.com/Bios-Marcel/wastebucket
+    steps:
+      - run: sudo apt-get update
+      - run: sudo apt-get -y install libglib2.0
+      
+      - run: go get -v -t -d ./...
+      - run: go test -v ./...
+      
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build_gvfs
+      - build_trash_cli
+      - build_gio
