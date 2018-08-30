@@ -4,7 +4,7 @@ jobs:
     docker:
       - image: circleci/golang:1.10
 
-    working_directory: /go/src/github.com/Bios-Marcel/wastebucket
+    working_directory: /go/src/github.com/Bios-Marcel/wastebasket
     steps:
       - run: sudo apt-get update
       - run: sudo apt-get -y install trash-cli
@@ -16,7 +16,7 @@ jobs:
     docker:
       - image: circleci/golang:1.10
 
-    working_directory: /go/src/github.com/Bios-Marcel/wastebucket
+    working_directory: /go/src/github.com/Bios-Marcel/wastebasket
     steps:
       - run: sudo apt-get update
       - run: sudo apt-get -y install gvfs gvfs-common gvfs-bin
@@ -28,7 +28,7 @@ jobs:
     docker:
       - image: circleci/golang:1.10
 
-    working_directory: /go/src/github.com/Bios-Marcel/wastebucket
+    working_directory: /go/src/github.com/Bios-Marcel/wastebasket
     steps:
       - run: sudo apt-get update
       - run: sudo apt-get -y install libglib2.0
