@@ -6,6 +6,8 @@ jobs:
 
     working_directory: /go/src/github.com/Bios-Marcel/wastebasket
     steps:
+      - checkout
+
       - run: sudo apt-get update
       - run: sudo apt-get -y install trash-cli
       
@@ -18,6 +20,8 @@ jobs:
 
     working_directory: /go/src/github.com/Bios-Marcel/wastebasket
     steps:
+      - checkout
+
       - run: sudo apt-get update
       - run: sudo apt-get -y install gvfs gvfs-common gvfs-bin
       
@@ -30,6 +34,8 @@ jobs:
 
     working_directory: /go/src/github.com/Bios-Marcel/wastebasket
     steps:
+      - checkout
+      
       - run: sudo apt-get update
       - run: sudo apt-get -y install libglib2.0
       
