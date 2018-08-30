@@ -6,9 +6,12 @@ language: go
 go:
 - "1.10"
 
-before_install:
-  - if [ $TRAVIS_OS_NAME = "osx" ]; then brew update; fi;
-  - if [ $TRAVIS_OS_NAME = "osx" ]; then brew install trash; fi;
+addons:
+  apt:
+    update: true
+    packages:
+      - gvfs-trash
 
-  - if [ $TRAVIS_OS_NAME = "linux" ]; then sudo apt-get update -qq; fi;
-  - if [ $TRAVIS_OS_NAME = "linux" ]; then sudo apt-get install -qq gvfs-trash; fi;
+before_install:
+  - if [ $TRAVIS_OS_NAME = "osx" ]; then brew update; fi
+  - if [ $TRAVIS_OS_NAME = "osx" ]; then brew install trash; fi
