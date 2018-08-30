@@ -37,9 +37,11 @@ func Trash(path string) error {
 		return exec.Command("gio", "trash", "--force", path).Run()
 	} else if isCommandAvailable("gvfs-trash") {
 		return exec.Command("gvfs-trash", "--force", path).Run()
+	} else if isCommandAvailable("trash") {
+		return exec.Command("trash", "--", path).Run()
 	}
 
-	return errors.New("The commands `gio` and `gvfs-trash` aren't available")
+	return errors.New("None of the commands `gio`, `gvfs-trash` or `trash` are available")
 }
 
 //Empty clears the platforms trashbin.
@@ -49,7 +51,9 @@ func Empty() error {
 		return exec.Command("gio", "trash", "--empty").Run()
 	} else if isCommandAvailable("gvfs-trash") {
 		return exec.Command("gvfs-trash", "--empty").Run()
+	} else if isCommandAvailable("trash-empty") {
+		return exec.Command("trash-empty").Run()
 	}
 
-	return errors.New("The commands `gio` and `gvfs-trash` aren't available")
+	return errors.New("None of the commands `gio`, `gvfs-trash` or `trash-empty` are available")
 }
