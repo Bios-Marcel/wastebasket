@@ -20,7 +20,7 @@ func Trash(path string) error {
 		return fileError
 	}
 
-	command := fmt.Sprintln("tell app \"Finder\" to delete \"%s\" as POSIX file", path)
+	command := fmt.Sprintf("tell app \"Finder\" to delete \"%s\" as POSIX file", path)
 	return exec.Command("osascript", "-e", command).Run()
 }
 
