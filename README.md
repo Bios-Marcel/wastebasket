@@ -16,7 +16,7 @@ The only dependency is PowerShell.
 
 ### Linux
 
-Your either need to have `gio` or `gvfs-trash` installed.
+Your either need to have `gio`, `gvfs-trash` or `trash-cli` installed.
 
 ### Mac OS
 
