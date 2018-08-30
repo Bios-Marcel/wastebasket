@@ -4,6 +4,7 @@ package wastebasket
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -38,7 +39,16 @@ func Trash(path string) error {
 	} else if isCommandAvailable("gvfs-trash") {
 		return exec.Command("gvfs-trash", "--force", path).Run()
 	} else if isCommandAvailable("trash") {
-		return exec.Command("trash", "--", path).Run()
+		//trash-cli throws 74 in case the file doesn't exist
+		_, fileError := os.Stat(path)
+
+		if os.IsNotExist(fileError) {
+			return nil
+		}
+
+		//the path needs to be quoted, as it otherwise takes it as multiple parameters.
+		quotedPath := "'" + path + "'"
+		return exec.Command("trash", "--", quotedPath).Run()
 	}
 
 	return errors.New("None of the commands `gio`, `gvfs-trash` or `trash` are available")
