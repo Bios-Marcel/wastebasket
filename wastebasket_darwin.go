@@ -3,7 +3,6 @@
 package wastebasket
 
 import (
-	"errors"
 	"os"
 	"os/exec"
 )
@@ -23,7 +22,7 @@ func Trash(path string) error {
 	return exec.Command("trash", path).Run()
 }
 
-//Empty clears the platforms trashbin.
+//Empty isn't supported on the darwin platform.
 func Empty() error {
-	return errors.New("Not supported yet")
+	return nil
 }
