@@ -13,7 +13,7 @@ var testDirPathWithSpaces = "test-del ete-me"
 
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentFile(t *testing.T) {
-	writeTestFile(t)
+	writeTestFile(testFilePath, t)
 	error := Trash(testFilePath)
 	if error != nil {
 		t.Errorf("Error trashing file. (%s)", error)
@@ -29,7 +29,7 @@ func TestTrashWithExistentFile(t *testing.T) {
 
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentFileWithSpaces(t *testing.T) {
-	writeTestFile(t)
+	writeTestFile(testFilePathWithSpaces, t)
 	error := Trash(testFilePathWithSpaces)
 	if error != nil {
 		t.Errorf("Error trashing file. (%s)", error)
@@ -65,7 +65,7 @@ func TestTrashWithNonexistentFile(t *testing.T) {
 
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentFolder(t *testing.T) {
-	writeTestDirectory(t)
+	writeTestDirectory(testDirPath, t)
 	error := Trash(testDirPath)
 	if error != nil {
 		t.Errorf("Error trashing file. (%s)", error)
@@ -81,7 +81,7 @@ func TestTrashWithExistentFolder(t *testing.T) {
 
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentFolderWithSpaces(t *testing.T) {
-	writeTestDirectory(t)
+	writeTestDirectory(testDirPathWithSpaces, t)
 	error := Trash(testDirPathWithSpaces)
 	if error != nil {
 		t.Errorf("Error trashing file. (%s)", error)
@@ -123,14 +123,14 @@ func TestEmpty(t *testing.T) {
 	}
 }
 
-func writeTestFile(t *testing.T) {
-	writeError := ioutil.WriteFile(testFilePath, []byte("Test"), os.ModePerm)
+func writeTestFile(path string, t *testing.T) {
+	writeError := ioutil.WriteFile(path, []byte("Test"), os.ModePerm)
 	if writeError != nil {
 		t.Errorf("Error writing testfile. (%s)", writeError)
 	}
 }
 
-func writeTestDirectory(t *testing.T) {
+func writeTestDirectory(path string, t *testing.T) {
 	mkdirError := os.Mkdir(testDirPath, os.ModePerm)
 	if mkdirError != nil {
 		t.Errorf("Error creating test directory. (%s)", mkdirError)
