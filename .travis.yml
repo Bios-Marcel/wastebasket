@@ -1,8 +1,11 @@
-os: osx
+os:
+  - linux
+  - osx
+
 language: go
 go:
 - "1.10"
 
 before_install:
-  - brew update
-  - brew install trash
+  - test $TRAVIS_OS_NAME = "osx" && brew update
+  - test $TRAVIS_OS_NAME = "osx" && brew install trash
