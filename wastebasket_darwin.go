@@ -3,6 +3,7 @@
 package wastebasket
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 )
@@ -19,7 +20,8 @@ func Trash(path string) error {
 		return fileError
 	}
 
-	return exec.Command("trash", path).Run()
+	command := fmt.Sprintln("tell app \"Finder\" to delete \"%s\" as POSIX file", path)
+	return exec.Command("osascript", "-e", command).Run()
 }
 
 //Empty clears the platforms trashbin. It uses the `Finder` app to empty the trashbin.
