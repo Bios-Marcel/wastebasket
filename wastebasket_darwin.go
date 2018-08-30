@@ -7,7 +7,7 @@ import (
 	"os/exec"
 )
 
-//Trash moves a files or folder including its content into the systems trashbin.
+//Trash moves a file or folder including its content into the systems trashbin.
 func Trash(path string) error {
 	_, fileError := os.Stat(path)
 

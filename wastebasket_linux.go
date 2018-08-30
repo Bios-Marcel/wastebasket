@@ -31,7 +31,7 @@ func isCommandAvailable(name string) bool {
 	return true
 }
 
-//Trash moves a files or folder including its content into the systems trashbin.
+//Trash moves a file or folder including its content into the systems trashbin.
 func Trash(path string) error {
 	//gio us the tool that replaces gvfs, therefore it is the first choice.
 	if isCommandAvailable("gio") {
