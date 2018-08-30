@@ -8,8 +8,6 @@
 
 Wastebasket is a go library allowing you to move files into your trashbin.
 
-**Emptying the trash currently doesn't work on darwin.**
-
 ## Dependencies
 
 ### Windows
