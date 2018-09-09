@@ -43,6 +43,22 @@ func TestTrashWithExistentFileWithSpaces(t *testing.T) {
 	cleanup()
 }
 
+//TestTrash tests trashing a single file which is created beforehand. the path is of format `./filename`.
+func TestTrashWithExistentFileWithSpacesAndDotSlashAppended(t *testing.T) {
+	writeTestFile(testFilePathWithSpaces, t)
+	error := Trash("./" + testFilePathWithSpaces)
+	if error != nil {
+		t.Errorf("Error trashing file. (%s)", error)
+	}
+
+	_, error = os.Stat(testFilePathWithSpaces)
+	if os.IsExist(error) {
+		t.Errorf("File hasn't been deleted. (%s)", error)
+	}
+
+	cleanup()
+}
+
 //TestTrash tests trashing a single file which doesn't exist
 func TestTrashWithNonexistentFile(t *testing.T) {
 	_, error := os.Stat(testFilePath)

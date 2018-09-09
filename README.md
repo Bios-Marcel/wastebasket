@@ -20,9 +20,7 @@ Your either need to have `gio`, `gvfs-trash` or `trash-cli` installed.
 
 ### Mac OS
 
-```bash
-brew install trash
-```
+The only dependency is the MacOS application `Finder` which is installed by default.
 
 ## How do i use it
 
