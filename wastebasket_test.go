@@ -20,7 +20,9 @@ func TestTrashWithExistentFile(t *testing.T) {
 	}
 
 	_, error = os.Stat(testFilePath)
-	if os.IsExist(error) {
+	if (os.IsNotExist(error)) {
+		//Everything correct!
+	} else {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
 
@@ -36,7 +38,9 @@ func TestTrashWithExistentFileWithSpaces(t *testing.T) {
 	}
 
 	_, error = os.Stat(testFilePathWithSpaces)
-	if os.IsExist(error) {
+	if (os.IsNotExist(error)) {
+		//Everything correct!
+	} else {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
 
@@ -52,7 +56,9 @@ func TestTrashWithExistentFileWithSpacesAndDotSlashAppended(t *testing.T) {
 	}
 
 	_, error = os.Stat(testFilePathWithSpaces)
-	if os.IsExist(error) {
+	if (os.IsNotExist(error)) {
+		//Everything correct!
+	} else {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
 
@@ -72,7 +78,9 @@ func TestTrashWithNonexistentFile(t *testing.T) {
 	}
 
 	_, error = os.Stat(testFilePath)
-	if os.IsExist(error) {
+	if (os.IsNotExist(error)) {
+		//Everything correct!
+	} else {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
 
@@ -88,7 +96,9 @@ func TestTrashWithExistentFolder(t *testing.T) {
 	}
 
 	_, error = os.Stat(testDirPath)
-	if os.IsExist(error) {
+	if (os.IsNotExist(error)) {
+		//Everything correct!
+	} else {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
 
@@ -104,10 +114,11 @@ func TestTrashWithExistentFolderWithSpaces(t *testing.T) {
 	}
 
 	_, error = os.Stat(testDirPathWithSpaces)
-	if os.IsExist(error) {
+	if (os.IsNotExist(error)) {
+		//Everything correct!
+	} else {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
-
 	cleanup()
 }
 
@@ -124,7 +135,9 @@ func TestTrashWithNonexistentFolder(t *testing.T) {
 	}
 
 	_, error = os.Stat(testDirPath)
-	if os.IsExist(error) {
+	if (os.IsNotExist(error)) {
+		//Everything correct!
+	} else {
 		t.Errorf("File hasn't been deleted. (%s)", error)
 	}
 
