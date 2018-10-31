@@ -22,10 +22,12 @@ func Trash(path string) error {
 
 	psCommand := ""
 	if file.IsDir() {
-		psCommand = fmt.Sprintf("\"Add-Type -AssemblyName Microsoft.VisualBasic;[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFolder(%s, 'OnlyErrorDialogs','SendToRecycleBin')\"", path)
+		psCommand = fmt.Sprintf("Add-Type -AssemblyName Microsoft.VisualBasic;[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory('%s', 'OnlyErrorDialogs','SendToRecycleBin')", path)
 	} else {
-		psCommand = fmt.Sprintf("\"Add-Type -AssemblyName Microsoft.VisualBasic;[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(%s, 'OnlyErrorDialogs','SendToRecycleBin')\"", path)
+		psCommand = fmt.Sprintf("Add-Type -AssemblyName Microsoft.VisualBasic;[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile('%s', 'OnlyErrorDialogs','SendToRecycleBin')", path)
 	}
+
+	fmt.Println(psCommand)
 
 	return exec.Command("powershell", "-Command", psCommand).Run()
 }
