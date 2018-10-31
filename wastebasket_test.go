@@ -3,6 +3,7 @@ package wastebasket
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -90,6 +91,25 @@ func TestTrashWithNonexistentFile(t *testing.T) {
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentFolder(t *testing.T) {
 	writeTestDirectory(testDirPath, t)
+	error := Trash(testDirPath)
+	if error != nil {
+		t.Errorf("Error trashing file. (%s)", error.Error())
+	}
+
+	_, error = os.Stat(testDirPath)
+	if os.IsNotExist(error) {
+		//Everything correct!
+	} else {
+		t.Errorf("File hasn't been deleted.")
+	}
+
+	cleanup()
+}
+
+//TestTrash tests trashing a single file which is created beforehand
+func TestTrashWithExistentNonEmptyFolder(t *testing.T) {
+	writeTestDirectory(testDirPath, t)
+	writeTestFile(filepath.Join(testDirPath, testFilePath), t)
 	error := Trash(testDirPath)
 	if error != nil {
 		t.Errorf("Error trashing file. (%s)", error.Error())
