@@ -12,25 +12,28 @@ Wastebasket is a go library allowing you to move files into your trashbin.
 
 ### Windows
 
-The only dependency is PowerShell.
+The only dependency is `PowerShell`, which is installed by default. This will change at some point, as I am planning to reimplement the functionallity using the win32 api.
 
 ### Linux
 
 Your either need to have `gio`, `gvfs-trash` or `trash-cli` installed.
+At least one of these is usually installed by default.
 
 ### Mac OS
 
-The only dependency is the MacOS application `Finder` which is installed by default.
+The only dependency is `Finder`, which is installed by default.
 
 ## How do i use it
 
-Run
+Grab it via
 
 ```bash
 go get github.com/Bios-Marcel/wastebasket
 ```
 
-Example usage in Go:
+and you are ready to go.
+
+Minimal Go example that creates a file, deletes it and empties the trashbin:
 
 ```GO
 package main
@@ -48,5 +51,4 @@ func main() {
     fmt.Println(wastebasket.Trash("test.txt"))
     wastebasket.Empty()
 }
-
 ```
