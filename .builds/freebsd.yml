@@ -1,0 +1,10 @@
+image: freebsd
+packages:
+  - go
+tasks:
+  - build: |
+      export GOPATH=$PWD
+      go get github.com/UwUNote/uwunote
+      cd src/github.com/UwUNote/uwunote
+      go get -v ./...
+      go build

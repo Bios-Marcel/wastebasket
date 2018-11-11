@@ -1,0 +1,10 @@
+image: archlinux
+packages:
+  - go
+tasks:
+  - build: |
+      export GOPATH=$PWD
+      go get github.com/Bios-Marcel/wastebasket
+      cd src/github.com/Bios-Marcel/wastebasket
+      go get -v ./...
+      go build 
