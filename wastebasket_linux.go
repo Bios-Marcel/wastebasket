@@ -1,5 +1,3 @@
-// +build !windows,!darwin
-
 package wastebasket
 
 import (
