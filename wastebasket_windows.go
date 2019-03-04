@@ -27,8 +27,6 @@ func Trash(path string) error {
 		psCommand = fmt.Sprintf("Add-Type -AssemblyName Microsoft.VisualBasic;[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile('%s', 'OnlyErrorDialogs','SendToRecycleBin')", path)
 	}
 
-	fmt.Println(psCommand)
-
 	return exec.Command("powershell", "-Command", psCommand).Run()
 }
 
