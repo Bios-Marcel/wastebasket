@@ -17,172 +17,154 @@ const (
 
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentFile(t *testing.T) {
+	defer cleanup()
+
 	writeTestFile(testFilePath, t)
-	error := Trash(testFilePath)
-	if error != nil {
-		t.Errorf("Error trashing file. (%s)", error.Error())
+	if errTrash := Trash(testFilePath); errTrash != nil {
+		t.Errorf("Error trashing file. (%s)", errTrash.Error())
 	}
 
-	_, error = os.Stat(testFilePath)
-	if os.IsNotExist(error) {
+	if _, errStat := os.Stat(testFilePath); os.IsNotExist(errStat) {
 		//Everything correct!
 	} else {
 		t.Errorf("File hasn't been deleted.")
 	}
-
-	cleanup()
 }
 
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentFileWithSpaces(t *testing.T) {
+	defer cleanup()
+
 	writeTestFile(testFilePathWithSpaces, t)
-	error := Trash(testFilePathWithSpaces)
-	if error != nil {
-		t.Errorf("Error trashing file. (%s)", error.Error())
+	if errTrash := Trash(testFilePathWithSpaces); errTrash != nil {
+		t.Errorf("Error trashing file. (%s)", errTrash.Error())
 	}
 
-	_, error = os.Stat(testFilePathWithSpaces)
-	if os.IsNotExist(error) {
+	if _, errStat := os.Stat(testFilePathWithSpaces); os.IsNotExist(errStat) {
 		//Everything correct!
 	} else {
 		t.Errorf("File hasn't been deleted.")
 	}
-
-	cleanup()
 }
 
 //TestTrash tests trashing a single file which is created beforehand. the path is of format `./filename`.
 func TestTrashWithExistentFileWithSpacesAndDotSlashAppended(t *testing.T) {
+	defer cleanup()
+
 	writeTestFile(testFilePathWithSpaces, t)
-	error := Trash("./" + testFilePathWithSpaces)
-	if error != nil {
-		t.Errorf("Error trashing file. (%s)", error.Error())
+	if errTrash := Trash("./" + testFilePathWithSpaces); errTrash != nil {
+		t.Errorf("Error trashing file. (%s)", errTrash.Error())
 	}
 
-	_, error = os.Stat(testFilePathWithSpaces)
-	if os.IsNotExist(error) {
+	if _, errStat := os.Stat(testFilePathWithSpaces); os.IsNotExist(errStat) {
 		//Everything correct!
 	} else {
 		t.Errorf("File hasn't been deleted.")
 	}
-
-	cleanup()
 }
 
 //TestTrash tests trashing a single file which doesn't exist
 func TestTrashWithNonexistentFile(t *testing.T) {
-	_, error := os.Stat(testFilePath)
-	if !os.IsNotExist(error) {
+	defer cleanup()
+
+	if _, errStat := os.Stat(testFilePath); !os.IsNotExist(errStat) {
 		t.Errorf("File shouldn't exist at start of this test.")
 	}
 
-	error = Trash(testFilePath)
-	if error != nil {
-		t.Errorf("Error trashing file. (%s)", error)
+	if errTrash := Trash(testFilePath); errTrash != nil {
+		t.Errorf("Error trashing file. (%s)", errTrash)
 	}
 
-	_, error = os.Stat(testFilePath)
-	if os.IsNotExist(error) {
+	if _, errStat := os.Stat(testFilePath); os.IsNotExist(errStat) {
 		//Everything correct!
 	} else {
 		t.Errorf("File hasn't been deleted.")
 	}
-
-	cleanup()
 }
 
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentFolder(t *testing.T) {
+	defer cleanup()
+
 	writeTestDirectory(testDirPath, t)
-	error := Trash(testDirPath)
-	if error != nil {
-		t.Errorf("Error trashing file. (%s)", error.Error())
+	if errTrash := Trash(testDirPath); errTrash != nil {
+		t.Errorf("Error trashing file. (%s)", errTrash.Error())
 	}
 
-	_, error = os.Stat(testDirPath)
-	if os.IsNotExist(error) {
+	if _, errStat := os.Stat(testDirPath); os.IsNotExist(errStat) {
 		//Everything correct!
 	} else {
 		t.Errorf("File hasn't been deleted.")
 	}
-
-	cleanup()
 }
 
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentNonEmptyFolder(t *testing.T) {
+	defer cleanup()
+
 	writeTestDirectory(testDirPath, t)
 	writeTestFile(filepath.Join(testDirPath, testFilePath), t)
-	error := Trash(testDirPath)
-	if error != nil {
-		t.Errorf("Error trashing file. (%s)", error.Error())
+
+	if errTrash := Trash(testDirPath); errTrash != nil {
+		t.Errorf("Error trashing file. (%s)", errTrash.Error())
 	}
 
-	_, error = os.Stat(testDirPath)
-	if os.IsNotExist(error) {
+	if _, errStat := os.Stat(testDirPath); os.IsNotExist(errStat) {
 		//Everything correct!
 	} else {
 		t.Errorf("File hasn't been deleted.")
 	}
-
-	cleanup()
 }
 
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentFolderWithSpaces(t *testing.T) {
+	defer cleanup()
+
 	writeTestDirectory(testDirPathWithSpaces, t)
-	error := Trash(testDirPathWithSpaces)
-	if error != nil {
-		t.Errorf("Error trashing file. (%s)", error.Error())
+	if errTrash := Trash(testDirPathWithSpaces); errTrash != nil {
+		t.Errorf("Error trashing file. (%s)", errTrash.Error())
 	}
 
-	_, error = os.Stat(testDirPathWithSpaces)
-	if os.IsNotExist(error) {
+	if _, errStat := os.Stat(testDirPathWithSpaces); os.IsNotExist(errStat) {
 		//Everything correct!
 	} else {
 		t.Errorf("File hasn't been deleted.")
 	}
-	cleanup()
 }
 
 //TestTrash tests trashing a single file which doesn't exist
 func TestTrashWithNonexistentFolder(t *testing.T) {
-	_, error := os.Stat(testDirPath)
-	if !os.IsNotExist(error) {
+	defer cleanup()
+
+	if _, errStat := os.Stat(testDirPath); !os.IsNotExist(errStat) {
 		t.Errorf("File shouldn't exist at start of this test.")
 	}
 
-	error = Trash(testDirPath)
-	if error != nil {
-		t.Errorf("Error trashing file. (%s)", error.Error())
+	if errTrash := Trash(testDirPath); errTrash != nil {
+		t.Errorf("Error trashing file. (%s)", errTrash.Error())
 	}
 
-	_, error = os.Stat(testDirPath)
-	if os.IsNotExist(error) {
+	if _, errStat := os.Stat(testDirPath); os.IsNotExist(errStat) {
 		//Everything correct!
 	} else {
 		t.Errorf("File hasn't been deleted.")
 	}
-
-	cleanup()
 }
 
 // TestTrashWithExistentFileWithDoubleQuotes tests trashing a single file with a double quote in its name
 func TestTrashWithExistentFileWithDoubleQuotes(t *testing.T) {
+	defer cleanup()
+
 	writeTestFile(testFilePathWithDoubleQuotes, t)
-	error := Trash(testFilePathWithDoubleQuotes)
-	if error != nil {
-		t.Errorf("Error trashing file. (%s)", error.Error())
+	if errTrash := Trash(testFilePathWithDoubleQuotes); errTrash != nil {
+		t.Errorf("Error trashing file. (%s)", errTrash.Error())
 	}
 
-	_, error = os.Stat(testFilePathWithDoubleQuotes)
-	if os.IsNotExist(error) {
+	if _, errStat := os.Stat(testFilePathWithDoubleQuotes); os.IsNotExist(errStat) {
 		//Everything correct!
 	} else {
 		t.Errorf("File hasn't been deleted.")
 	}
-
-	cleanup()
 }
 
 //TestEmpty tests emptying the systems trashbin
@@ -192,7 +174,7 @@ func TestEmpty(t *testing.T) {
 		t.Errorf("Error emptying trashbin. (%s)", error.Error())
 	}
 
-	//Can I found a way to see if this actually worked?
+	//Can I find a way to see if this actually worked?
 }
 
 func writeTestFile(path string, t *testing.T) {
