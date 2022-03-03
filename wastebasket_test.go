@@ -8,10 +8,11 @@ import (
 )
 
 const (
-	testFilePath           = "test.txt"
-	testDirPath            = "test-delete-me"
-	testFilePathWithSpaces = "te st.txt"
-	testDirPathWithSpaces  = "test-del ete-me"
+	testFilePath                 = "test.txt"
+	testDirPath                  = "test-delete-me"
+	testFilePathWithSpaces       = "te st.txt"
+	testDirPathWithSpaces        = "test-del ete-me"
+	testFilePathWithDoubleQuotes = "foo\"bar\".txt"
 )
 
 //TestTrash tests trashing a single file which is created beforehand

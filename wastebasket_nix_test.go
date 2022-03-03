@@ -8,8 +8,6 @@ import (
 	"testing"
 )
 
-const testFilePathWithDoubleQuotes = "foo\"bar\".txt"
-
 // TestTrashWithExistentFileWithDoubleQuotes tests trashing a single file with a double quote in its name
 func TestTrashWithExistentFileWithDoubleQuotes(t *testing.T) {
 	defer cleanup()
