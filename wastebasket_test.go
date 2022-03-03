@@ -12,6 +12,8 @@ var testDirPath = "test-delete-me"
 var testFilePathWithSpaces = "te st.txt"
 var testDirPathWithSpaces = "test-del ete-me"
 
+const testFilePathWithDoubleQuotes = "foo\"bar\".txt"
+
 //TestTrash tests trashing a single file which is created beforehand
 func TestTrashWithExistentFile(t *testing.T) {
 	writeTestFile(testFilePath, t)
@@ -164,6 +166,24 @@ func TestTrashWithNonexistentFolder(t *testing.T) {
 	cleanup()
 }
 
+// TestTrashWithExistentFileWithDoubleQuotes tests trashing a single file with a double quote in its name
+func TestTrashWithExistentFileWithDoubleQuotes(t *testing.T) {
+	writeTestFile(testFilePathWithDoubleQuotes, t)
+	error := Trash(testFilePathWithDoubleQuotes)
+	if error != nil {
+		t.Errorf("Error trashing file. (%s)", error.Error())
+	}
+
+	_, error = os.Stat(testFilePathWithDoubleQuotes)
+	if os.IsNotExist(error) {
+		//Everything correct!
+	} else {
+		t.Errorf("File hasn't been deleted.")
+	}
+
+	cleanup()
+}
+
 //TestEmpty tests emptying the systems trashbin
 func TestEmpty(t *testing.T) {
 	error := Empty()
@@ -177,7 +197,7 @@ func TestEmpty(t *testing.T) {
 func writeTestFile(path string, t *testing.T) {
 	writeError := ioutil.WriteFile(path, []byte("Test"), os.ModePerm)
 	if writeError != nil {
-		t.Errorf("Error writing testfile. (%s)", writeError.Error())
+		t.Errorf("Error writing test file. (%s)", writeError.Error())
 	}
 }
 
@@ -190,5 +210,8 @@ func writeTestDirectory(path string, t *testing.T) {
 
 func cleanup() {
 	os.Remove(testDirPath)
+	os.Remove(testDirPathWithSpaces)
 	os.Remove(testFilePath)
+	os.Remove(testFilePathWithSpaces)
+	os.Remove(testFilePathWithDoubleQuotes)
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 //Trash moves a file or folder including its content into the systems trashbin.
@@ -25,6 +26,7 @@ func Trash(path string) error {
 		return pathToAbsPathError
 	}
 
+	path = strings.ReplaceAll(path, "\"", "\\\"")
 	osascriptCommand := fmt.Sprintf("tell app \"Finder\" to delete POSIX file \"%s\"", path)
 	return exec.Command("osascript", "-e", osascriptCommand).Run()
 }
