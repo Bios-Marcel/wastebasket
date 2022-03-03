@@ -1,10 +1,6 @@
 # Wastebasket
 
-| OS | master | develop |
-| - | - | - |
-| linux | [![CircleCI - Linux - master](https://circleci.com/gh/Bios-Marcel/wastebasket/tree/master.svg?style=svg)](https://circleci.com/gh/Bios-Marcel/wastebasket/tree/master) | [![CircleCI - Linux - develop](https://circleci.com/gh/Bios-Marcel/wastebasket/tree/develop.svg?style=svg)](https://circleci.com/gh/Bios-Marcel/wastebasket/tree/develop) |
-| darwin / linux | [![Travis CI - Darwin and Linux - master](https://travis-ci.org/Bios-Marcel/wastebasket.svg?branch=master)](https://travis-ci.org/Bios-Marcel/wastebasket) | [![Travis CI - Darwin and Linux - develop](https://travis-ci.org/Bios-Marcel/wastebasket.svg?branch=develop)](https://travis-ci.org/Bios-Marcel/wastebasket) |
-| windows | [![AppVeyor - Windows - master](https://ci.appveyor.com/api/projects/status/8tsgphvg9jn3mms2/branch/master?svg=true)](https://ci.appveyor.com/project/Bios-Marcel/wastebasket) | [![AppVeyor - Windows- develop](https://ci.appveyor.com/api/projects/status/8tsgphvg9jn3mms2/branch/develop?svg=true)](https://ci.appveyor.com/project/Bios-Marcel/wastebasket) |
+[![CI](https://github.com/Bios-Marcel/wastebasket/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/Bios-Marcel/wastebasket/actions/workflows/test.yml)
 
 Wastebasket is a go library allowing you to move files into your trashbin.
 
