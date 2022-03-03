@@ -8,11 +8,10 @@ import (
 )
 
 const (
-	testFilePath                 = "test.txt"
-	testDirPath                  = "test-delete-me"
-	testFilePathWithSpaces       = "te st.txt"
-	testDirPathWithSpaces        = "test-del ete-me"
-	testFilePathWithDoubleQuotes = "foo\"bar\".txt"
+	testFilePath           = "test.txt"
+	testDirPath            = "test-delete-me"
+	testFilePathWithSpaces = "te st.txt"
+	testDirPathWithSpaces  = "test-del ete-me"
 )
 
 //TestTrash tests trashing a single file which is created beforehand
@@ -145,22 +144,6 @@ func TestTrashWithNonexistentFolder(t *testing.T) {
 	}
 
 	if _, errStat := os.Stat(testDirPath); os.IsNotExist(errStat) {
-		//Everything correct!
-	} else {
-		t.Errorf("File hasn't been deleted.")
-	}
-}
-
-// TestTrashWithExistentFileWithDoubleQuotes tests trashing a single file with a double quote in its name
-func TestTrashWithExistentFileWithDoubleQuotes(t *testing.T) {
-	defer cleanup()
-
-	writeTestFile(testFilePathWithDoubleQuotes, t)
-	if errTrash := Trash(testFilePathWithDoubleQuotes); errTrash != nil {
-		t.Errorf("Error trashing file. (%s)", errTrash.Error())
-	}
-
-	if _, errStat := os.Stat(testFilePathWithDoubleQuotes); os.IsNotExist(errStat) {
 		//Everything correct!
 	} else {
 		t.Errorf("File hasn't been deleted.")
