@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         platform: [windows-latest, ubuntu-latest, macos-latest]
-        go: ['1.16.x', '1.17.x', '1.18.x', '1.19.x']
+        go: ['1.17.x', '1.18.x', '1.19.x']
 
     runs-on: ${{ matrix.platform }}
 

@@ -8,7 +8,8 @@ Wastebasket is a go library allowing you to move files into your trashbin.
 
 ## Golang
 
-The library supports at least the 4 latest major Golang versions.
+The library supports at least the 3 latest major Golang versions. Depending on
+your OS it might still work on an older version, but there are no guarantees.
 
 ### Windows
 
