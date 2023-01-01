@@ -3,7 +3,6 @@ package wastebasket
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"unsafe"
 
@@ -116,6 +115,20 @@ func makeDoubleNullTerminatedLpstr(items ...string) (*uint16, error) {
 	return &chars[0], nil
 }
 
+const (
+	SHERB_NOCONFIRMATION = 1
+	SHERB_NOPROGRESSUI   = 2
+	SHERB_NOSOUND        = 4
+)
+
+// Empty clears the platforms trashbin.
 func Empty() error {
-	return exec.Command("powershell", "-Command", "\"Clear-RecycleBin\"").Run()
+	flags := SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND
+
+	ret, _, err := shEmptyRecycleBinW.Call(uintptr(unsafe.Pointer(nil)), uintptr(unsafe.Pointer(nil)), uintptr(flags))
+	if ret != 0 {
+		return fmt.Errorf("windows error: %w", err)
+	}
+
+	return nil
 }
