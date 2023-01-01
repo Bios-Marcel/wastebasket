@@ -6,9 +6,13 @@ Wastebasket is a go library allowing you to move files into your trashbin.
 
 ## Dependencies
 
+## Golang
+
+The library supports at least the 4 latest major Golang versions.
+
 ### Windows
 
-The only dependency is `PowerShell`, which is installed by default. This will change at some point, as I am planning to reimplement the functionallity using the win32 api.
+There are no dependencies, it depends on the Shell32 API built into Windows.
 
 ### Linux
 
