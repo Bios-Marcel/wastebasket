@@ -127,6 +127,12 @@ func Empty() error {
 
 	ret, _, err := shEmptyRecycleBinW.Call(uintptr(unsafe.Pointer(nil)), uintptr(unsafe.Pointer(nil)), uintptr(flags))
 	if ret != 0 {
+		// Weird edge case, where windows reports that it couldnt load the DLL
+		// if the trash bin is empty.
+		if err.(windows.Errno) == 126 {
+			return nil
+		}
+
 		return fmt.Errorf("windows error: %w", err)
 	}
 
