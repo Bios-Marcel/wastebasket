@@ -12,10 +12,10 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: 1.17.x
 
@@ -25,7 +25,7 @@ jobs:
           go test -race -coverprofile=profile.out -covermode=atomic ./...
 
       - name: Upload testcoverage to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         with:
-          file: ./profile.out
+          files: ./profile.out
           fail_ci_if_error: true
