@@ -26,14 +26,20 @@ func Trash(path string) error {
 	//gio is the tool that replaces gvfs, therefore it is the first choice.
 	if err := gioTrash(path); err != nil && err != errToolNotAvailable {
 		return err
+	} else if err == nil {
+		return nil
 	}
 
 	if err := gvfsTrash(path); err != nil && err != errToolNotAvailable {
 		return err
+	} else if err == nil {
+		return nil
 	}
 
 	if err := trashCli(path); err != nil && err != errToolNotAvailable {
 		return err
+	} else if err == nil {
+		return nil
 	}
 
 	return errors.New("None of the commands `gio`, `gvfs-trash` or `trash` are available")
@@ -77,14 +83,20 @@ func Empty() error {
 	//gio is the tool that replaces gvfs, therefore it is the first choice.
 	if err := gioEmpty(); err != nil && err != errToolNotAvailable {
 		return err
+	} else if err == nil {
+		return nil
 	}
 
 	if err := gvfsEmpty(); err != nil && err != errToolNotAvailable {
 		return err
+	} else if err == nil {
+		return nil
 	}
 
 	if err := trashCliEmpty(); err != nil && err != errToolNotAvailable {
 		return err
+	} else if err == nil {
+		return nil
 	}
 
 	return errors.New("None of the commands `gio`, `gvfs-trash` or `trash-empty` are available")
