@@ -3,7 +3,6 @@ package wastebasket
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -67,19 +66,21 @@ type SHFileOpStructW struct {
 }
 
 // Trash moves a file or folder including its content into the systems trashbin.
-func Trash(path string) error {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil
-	} else if err != nil {
-		return err
+func Trash(paths ...string) error {
+	existingPaths := make([]string, 0, len(paths))
+	for _, path := range paths {
+		// The API will return error code "2 - Operation completed successfully"
+		// when attempting to delete a non-existent file.
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return err
+		}
+
+		existingPaths = append(existingPaths, path)
 	}
 
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-
-	fileName, err := makeDoubleNullTerminatedLpstr(absPath)
+	filesParameter, err := makeDoubleNullTerminatedLpstr(existingPaths...)
 	if err != nil {
 		return fmt.Errorf("error creating utf16ptr for passed path: %w", err)
 	}
@@ -87,7 +88,7 @@ func Trash(path string) error {
 	ret, _, err := shFileOperationW.Call(uintptr(unsafe.Pointer(&SHFileOpStructW{
 		hwnd:                  windows.HWND(0),
 		wFunc:                 FO_DELETE,
-		pFrom:                 fileName,
+		pFrom:                 filesParameter,
 		pTo:                   nil,
 		fFlags:                FOF_NO_UI | FOF_ALLOWUNDO,
 		fAnyOperationsAborted: 0,

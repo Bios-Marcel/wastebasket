@@ -22,21 +22,21 @@ func isCommandAvailable(name string) bool {
 }
 
 // Trash moves a file or folder including its content into the systems trashbin.
-func Trash(path string) error {
+func Trash(paths ...string) error {
 	//gio is the tool that replaces gvfs, therefore it is the first choice.
-	if err := gioTrash(path); err != nil && err != errToolNotAvailable {
+	if err := gioTrash(paths...); err != nil && err != errToolNotAvailable {
 		return err
 	} else if err == nil {
 		return nil
 	}
 
-	if err := gvfsTrash(path); err != nil && err != errToolNotAvailable {
+	if err := gvfsTrash(paths...); err != nil && err != errToolNotAvailable {
 		return err
 	} else if err == nil {
 		return nil
 	}
 
-	if err := trashCli(path); err != nil && err != errToolNotAvailable {
+	if err := trashCli(paths...); err != nil && err != errToolNotAvailable {
 		return err
 	} else if err == nil {
 		return nil
@@ -45,34 +45,40 @@ func Trash(path string) error {
 	return errors.New("None of the commands `gio`, `gvfs-trash` or `trash` are available")
 }
 
-func gioTrash(path string) error {
+func gioTrash(paths ...string) error {
 	if isCommandAvailable("gio") {
 		// --force makes sure we don't get errors for non-existent files.
-		return exec.Command("gio", "trash", "--force", path).Run()
+		parameters := append([]string{"trash", "--force"}, paths...)
+		return exec.Command("gio", parameters...).Run()
 	}
 
 	return errToolNotAvailable
 }
 
-func gvfsTrash(path string) error {
+func gvfsTrash(paths ...string) error {
 	if isCommandAvailable("gvfs-trash") {
 		// --force makes sure we don't get errors for non-existent files.
-		return exec.Command("gvfs-trash", "--force", path).Run()
+		parameters := append([]string{"--force"}, paths...)
+		return exec.Command("gvfs-trash", parameters...).Run()
 	}
 
 	return errToolNotAvailable
 }
 
-func trashCli(path string) error {
+func trashCli(paths ...string) error {
 	if isCommandAvailable("trash") {
 		//trash-cli throws 74 in case the file doesn't exist
-		_, fileError := os.Stat(path)
+		existingFiles := make([]string, 0, len(paths))
+		for _, path := range paths {
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				continue
+			}
 
-		if os.IsNotExist(fileError) {
-			return nil
+			existingFiles = append(existingFiles, path)
 		}
 
-		return exec.Command("trash", "--", path).Run()
+		parameters := append([]string{"--"}, paths...)
+		return exec.Command("trash", parameters...).Run()
 	}
 
 	return errToolNotAvailable

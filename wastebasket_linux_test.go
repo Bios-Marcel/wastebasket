@@ -44,7 +44,7 @@ func Test_Trash_DifferentTools(t *testing.T) {
 	type testCase struct {
 		name     string
 		path     string
-		fnDelete func(string) error
+		fnDelete func(...string) error
 		err      error
 	}
 

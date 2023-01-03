@@ -76,6 +76,14 @@ func Test_Trash(t *testing.T) {
 			},
 			expectedFiles: nil,
 		},
+		{
+			name:             "delete two files in one call",
+			testDataToCreate: []string{"a.txt", "b.txt"},
+			trashExpectations: []trashExpectation{
+				{trash("a.txt", "b.txt"), nil},
+			},
+			expectedFiles: nil,
+		},
 	}
 
 	for _, c := range cases {
@@ -119,9 +127,9 @@ func TestEmpty(t *testing.T) {
 	//Can I find a way to see if this actually worked?
 }
 
-func trash(path string) func() error {
+func trash(paths ...string) func() error {
 	return func() error {
-		return Trash(path)
+		return Trash(paths...)
 	}
 }
 
