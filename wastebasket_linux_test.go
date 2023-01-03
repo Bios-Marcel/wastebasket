@@ -51,19 +51,19 @@ func Test_Trash_DifferentTools(t *testing.T) {
 	cases := []testCase{
 		{
 			name:     "basic gio test",
-			path:     testFilePath,
+			path:     "test.txt",
 			fnDelete: gioTrash,
 			err:      nil,
 		},
 		{
 			name:     "basic gvfs test",
-			path:     testFilePath,
+			path:     "test.txt",
 			fnDelete: gvfsTrash,
 			err:      nil,
 		},
 		{
 			name:     "basic trashCli test",
-			path:     testFilePath,
+			path:     "test.txt",
 			fnDelete: trashCli,
 			err:      nil,
 		},
@@ -71,8 +71,7 @@ func Test_Trash_DifferentTools(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer cleanup()
-			writeTestFile(c.path, t)
+			defer writeTestData(t, c.path)()
 
 			err := c.fnDelete(c.path)
 			if err == errToolNotAvailable {

@@ -9,15 +9,16 @@ import (
 )
 
 // TestTrashWithExistentFileWithDoubleQuotes tests trashing a single file with a double quote in its name
-func TestTrashWithExistentFileWithDoubleQuotes(t *testing.T) {
-	defer cleanup()
+func Test_Trash_ExistentFileWithDoubleQuotes(t *testing.T) {
 
-	writeTestFile(testFilePathWithDoubleQuotes, t)
-	if errTrash := Trash(testFilePathWithDoubleQuotes); errTrash != nil {
+	path := "foo\"bar\".txt"
+	defer writeTestData(t, path)
+
+	if errTrash := Trash(path); errTrash != nil {
 		t.Errorf("Error trashing file. (%s)", errTrash.Error())
 	}
 
-	if _, errStat := os.Stat(testFilePathWithDoubleQuotes); os.IsNotExist(errStat) {
+	if _, errStat := os.Stat(path); os.IsNotExist(errStat) {
 		//Everything correct!
 	} else {
 		t.Errorf("File hasn't been deleted.")
