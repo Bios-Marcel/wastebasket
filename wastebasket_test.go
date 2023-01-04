@@ -94,6 +94,14 @@ func Test_Trash(t *testing.T) {
 			expectedFiles: nil,
 		},
 		{
+			name:             "mix of folders and files",
+			testDataToCreate: []string{"a/", "b.txt", "c/", "c/file-in-c.txt", "c/another-file-in-c.txt"},
+			trashExpectations: []trashExpectation{
+				{trash("a", "b.txt", "c/file-in-c.txt", "c"), nil},
+			},
+			expectedFiles: nil,
+		},
+		{
 			name:             "large amount of files",
 			testDataToCreate: generateManyFileNames(257),
 			trashExpectations: []trashExpectation{
