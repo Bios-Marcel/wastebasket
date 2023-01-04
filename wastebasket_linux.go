@@ -77,7 +77,7 @@ func trashCli(paths ...string) error {
 			existingFiles = append(existingFiles, path)
 		}
 
-		parameters := append([]string{"--"}, paths...)
+		parameters := append([]string{"--"}, existingFiles...)
 		return exec.Command("trash", parameters...).Run()
 	}
 
