@@ -1,11 +1,20 @@
 package wastebasket
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 )
+
+func generateManyFileNames(count int) []string {
+	fileNames := make([]string, 0, count)
+	for i := 1; i <= count; i++ {
+		fileNames = append(fileNames, fmt.Sprintf("%d.txt", i))
+	}
+	return fileNames
+}
 
 func Test_Trash(t *testing.T) {
 	type trashExpectation struct {
@@ -81,6 +90,14 @@ func Test_Trash(t *testing.T) {
 			testDataToCreate: []string{"a.txt", "b.txt"},
 			trashExpectations: []trashExpectation{
 				{trash("a.txt", "b.txt"), nil},
+			},
+			expectedFiles: nil,
+		},
+		{
+			name:             "large amount of files",
+			testDataToCreate: generateManyFileNames(257),
+			trashExpectations: []trashExpectation{
+				{trash(generateManyFileNames(257)...), nil},
 			},
 			expectedFiles: nil,
 		},
