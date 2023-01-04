@@ -9,6 +9,7 @@ import (
 var (
 	availabilityCache   = make(map[string]bool)
 	errToolNotAvailable = errors.New("tool not available")
+	errNoToolsAvailable = errors.New("none of the commands `gio`, `gvfs-trash` or `trash` are available")
 )
 
 func isCommandAvailable(name string) bool {
@@ -42,7 +43,7 @@ func Trash(paths ...string) error {
 		return nil
 	}
 
-	return errors.New("None of the commands `gio`, `gvfs-trash` or `trash` are available")
+	return errNoToolsAvailable
 }
 
 func gioTrash(paths ...string) error {
@@ -105,7 +106,7 @@ func Empty() error {
 		return nil
 	}
 
-	return errors.New("None of the commands `gio`, `gvfs-trash` or `trash-empty` are available")
+	return errNoToolsAvailable
 }
 
 func gioEmpty() error {
