@@ -11,8 +11,8 @@ import (
 // TestTrashWithExistentFileWithDoubleQuotes tests trashing a single file with a double quote in its name
 func Test_Trash_ExistentFileWithDoubleQuotes(t *testing.T) {
 
-	path := "foo\"bar\".txt"
-	defer writeTestData(t, path)
+	path := `foo"bar".txt`
+	defer writeTestData(t, path)()
 
 	if errTrash := Trash(path); errTrash != nil {
 		t.Errorf("Error trashing file. (%s)", errTrash.Error())
