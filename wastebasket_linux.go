@@ -31,13 +31,13 @@ func Trash(paths ...string) error {
 		return nil
 	}
 
-	if err := gvfsTrash(paths...); err != nil && err != errToolNotAvailable {
+	if err := trashCli(paths...); err != nil && err != errToolNotAvailable {
 		return err
 	} else if err == nil {
 		return nil
 	}
 
-	if err := trashCli(paths...); err != nil && err != errToolNotAvailable {
+	if err := gvfsTrash(paths...); err != nil && err != errToolNotAvailable {
 		return err
 	} else if err == nil {
 		return nil
@@ -94,13 +94,13 @@ func Empty() error {
 		return nil
 	}
 
-	if err := gvfsEmpty(); err != nil && err != errToolNotAvailable {
+	if err := trashCliEmpty(); err != nil && err != errToolNotAvailable {
 		return err
 	} else if err == nil {
 		return nil
 	}
 
-	if err := trashCliEmpty(); err != nil && err != errToolNotAvailable {
+	if err := gvfsEmpty(); err != nil && err != errToolNotAvailable {
 		return err
 	} else if err == nil {
 		return nil
