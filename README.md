@@ -53,3 +53,13 @@ func main() {
     wastebasket.Empty()
 }
 ```
+
+## Benchmarks
+
+Run benchmarks using:
+
+```go
+go test -tags=nix_wrapper_impl -bench=.
+```
+
+//FIXME Maybe supply bench tag for clarity?

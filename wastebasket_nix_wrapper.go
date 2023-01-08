@@ -1,3 +1,5 @@
+//go:build !windows && !darwin && (nix_wrapper || nix_wrapper_impl)
+
 package wastebasket
 
 import (
@@ -85,6 +87,7 @@ func trashCli(paths ...string) error {
 	return errToolNotAvailable
 }
 
+<<<<<<< HEAD:wastebasket_linux.go
 // Empty clears the platforms trashbin.
 func Empty() error {
 	//gio is the tool that replaces gvfs, therefore it is the first choice.
@@ -109,6 +112,8 @@ func Empty() error {
 	return errNoToolsAvailable
 }
 
+=======
+>>>>>>> d6f9c35 (Create structure and benchmarks for new impl):wastebasket_nix_wrapper.go
 func gioEmpty() error {
 	if isCommandAvailable("gio") {
 		return exec.Command("gio", "trash", "--empty").Run()
