@@ -152,6 +152,20 @@ func TestEmpty(t *testing.T) {
 	//Can I find a way to see if this actually worked?
 }
 
+func assertExists(t *testing.T, path string) {
+	_, err := os.Stat(path)
+	if err != nil {
+		t.Errorf("path '%s' doesn't exist", path)
+	}
+}
+
+func assertNotExists(t *testing.T, path string) {
+	_, err := os.Stat(path)
+	if !os.IsNotExist(err) {
+		t.Errorf("path '%s' exists, but shouldn't", path)
+	}
+}
+
 func trash(paths ...string) func() error {
 	return func() error {
 		return Trash(paths...)
