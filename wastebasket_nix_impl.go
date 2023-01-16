@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	copyLib "github.com/otiai10/copy"
 	"golang.org/x/sys/unix"
@@ -24,6 +25,19 @@ func determineHomeTrashDir() (string, error) {
 	} else {
 		return filepath.Join(dataHome, "Trash"), nil
 	}
+}
+
+func fileExists(path string) (bool, error) {
+	if _, err := os.Stat(path); err != nil {
+		if !os.IsNotExist(err) {
+			return false, err
+		}
+
+		// File doesn't exist
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func customImplTrash(paths ...string) error {
@@ -58,14 +72,34 @@ func customImplTrash(paths ...string) error {
 			continue
 		}
 
-		// FIXME Handle duplicate target file names
-		// FIXME Write file info
 		baseName := filepath.Base(path)
 
 		// FIXME Once we move across partitions, we need to check for
 		// permissions beforehand, as it might make the file unreachable otherwise.
 
 		targetPath := filepath.Join(trashDir, baseName)
+
+		// We need to check whether the trash already contains a file with this
+		// name, since deleted files from different directories often have the
+		// same name. An example would be .gitignore files, they always have
+		// the same basename and therefore always the same trash path.
+		// We simply count up in this case. Since we've got the info file, we
+		// can map back to the original name later on.
+		if exists, err := fileExists(targetPath); err != nil {
+			return err
+		} else if exists {
+			extension := filepath.Ext(baseName)
+			baseNameNoExtension := strings.TrimSuffix(baseName, extension)
+			for i := uint64(1); i != 0; i = i + 1 {
+				targetPath = filepath.Join(trashDir, fmt.Sprintf("%s.%d%s", baseNameNoExtension, i, extension))
+
+				if exists, err := fileExists(targetPath); err == nil && !exists {
+					// We found a valid name.
+					break
+				}
+			}
+		}
+
 		if err := os.Rename(path, targetPath); err != nil {
 			// Moving across different filesystems causes os.Rename to fail.
 			// Therefore we need to do a costly copy followed by a remove.
@@ -96,6 +130,7 @@ func customImplTrash(paths ...string) error {
 	}
 
 WRITE_FILE_INFO:
+	// FIXME Write file info
 
 	return nil
 }
