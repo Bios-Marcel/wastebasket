@@ -4,9 +4,11 @@ package wastebasket
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	copyLib "github.com/otiai10/copy"
 	"golang.org/x/sys/unix"
@@ -49,6 +51,9 @@ func customImplTrash(paths ...string) error {
 		return fmt.Errorf("error determining user trash directory: %w", err)
 	}
 
+	filesDir := filepath.Join(trashDir, "files")
+	infoDir := filepath.Join(trashDir, "info")
+
 	// FIXME Move into function and allow specifying permissions depending on
 	// where the directory is located.
 
@@ -65,6 +70,8 @@ func customImplTrash(paths ...string) error {
 		return fmt.Errorf("error creating 'info' subdirectory for user trash directory: %w", err)
 	}
 
+	deletionDate := time.Now().Format(time.RFC3339)
+
 	for _, path := range paths {
 		// Avoid running into weird errors and there isn't anything to do
 		// either way.
@@ -77,7 +84,8 @@ func customImplTrash(paths ...string) error {
 		// FIXME Once we move across partitions, we need to check for
 		// permissions beforehand, as it might make the file unreachable otherwise.
 
-		targetPath := filepath.Join(trashDir, baseName)
+		trashedFilePath := filepath.Join(filesDir, baseName)
+		trashedFileInfoPath := filepath.Join(infoDir, baseName) + ".trashinfo"
 
 		// We need to check whether the trash already contains a file with this
 		// name, since deleted files from different directories often have the
@@ -85,22 +93,48 @@ func customImplTrash(paths ...string) error {
 		// the same basename and therefore always the same trash path.
 		// We simply count up in this case. Since we've got the info file, we
 		// can map back to the original name later on.
-		if exists, err := fileExists(targetPath); err != nil {
+		var (
+			trashedFilePathExists     bool
+			trashedFileInfoPathExists bool
+		)
+		if exists, err := fileExists(trashedFilePath); err != nil {
 			return err
-		} else if exists {
-			extension := filepath.Ext(baseName)
-			baseNameNoExtension := strings.TrimSuffix(baseName, extension)
-			for i := uint64(1); i != 0; i = i + 1 {
-				targetPath = filepath.Join(trashDir, fmt.Sprintf("%s.%d%s", baseNameNoExtension, i, extension))
-
-				if exists, err := fileExists(targetPath); err == nil && !exists {
-					// We found a valid name.
-					break
-				}
+		} else {
+			trashedFilePathExists = exists
+		}
+		if !trashedFilePathExists {
+			if exists, err := fileExists(trashedFileInfoPath); err != nil {
+				return err
+			} else {
+				trashedFileInfoPathExists = exists
 			}
 		}
 
-		if err := os.Rename(path, targetPath); err != nil {
+		if trashedFilePathExists || trashedFileInfoPathExists {
+			extension := filepath.Ext(baseName)
+			baseNameNoExtension := strings.TrimSuffix(baseName, extension)
+			for i := uint64(1); i != 0; i = i + 1 {
+				newBaseName := fmt.Sprintf("%s.%d%s", baseNameNoExtension, i, extension)
+
+				// The names of both files must always be the same, putting
+				// aside the .trashinfo extension.
+				trashedFilePath = filepath.Join(filesDir, fmt.Sprintf("%s.%d%s", baseNameNoExtension, i, extension))
+				trashedFileInfoPath = filepath.Join(infoDir, newBaseName+".trashinfo")
+
+				if exists, err := fileExists(trashedFilePath); err != nil || exists {
+					continue
+				}
+				if exists, err := fileExists(trashedFileInfoPath); err != nil || exists {
+					continue
+				}
+
+				// We found a valid name, where neither the file itself, nor
+				// the trashinfo file exist.
+				break
+			}
+		}
+
+		if err := os.Rename(path, trashedFilePath); err != nil {
 			// Moving across different filesystems causes os.Rename to fail.
 			// Therefore we need to do a costly copy followed by a remove.
 			if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err.Error() == "invalid cross-device link" {
@@ -109,7 +143,7 @@ func customImplTrash(paths ...string) error {
 					trashDirFsType := fsStats.Type
 					if err := unix.Statfs(path, &fsStats); err == nil {
 						if trashDirFsType != fsStats.Type {
-							if err := copyLib.Copy(path, targetPath); err != nil {
+							if err := copyLib.Copy(path, trashedFilePath); err != nil {
 								return fmt.Errorf("error copying files into trash directory: %w", err)
 							}
 
@@ -127,10 +161,21 @@ func customImplTrash(paths ...string) error {
 			// All special treatment failed, return original os.Rename error
 			return err
 		}
-	}
 
-WRITE_FILE_INFO:
-	// FIXME Write file info
+	WRITE_FILE_INFO:
+		// FIXME It also supports relative paths, relative to the
+		// trash directory. Considering that a mount could be moved to a
+		// different location, this might actually be smarter.
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+
+		// FIXME The escaping here is probably wrong. Needs fixing.
+		if err := os.WriteFile(trashedFileInfoPath, []byte(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", url.PathEscape(abs), deletionDate)), 0600); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
