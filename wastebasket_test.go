@@ -2,7 +2,6 @@ package wastebasket
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -178,7 +177,7 @@ func writeTestData(t *testing.T, paths ...string) func() {
 		if strings.HasSuffix(path, "/") {
 			err = os.Mkdir(path, os.ModePerm)
 		} else {
-			err = ioutil.WriteFile(path, []byte("test"), os.ModePerm)
+			err = os.WriteFile(path, []byte("test"), os.ModePerm)
 		}
 		if err != nil {
 			t.Errorf("Error writing test data. (%s)", err.Error())

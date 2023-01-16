@@ -41,14 +41,13 @@ package main
 
 import (
     "fmt"
-    "io/ioutil"
     "os"
 
     "github.com/Bios-Marcel/wastebasket"
 )
 
 func main() {
-    ioutil.WriteFile("test.txt", []byte("Test"), os.ModePerm)
+    os.WriteFile("test.txt", []byte("Test"), os.ModePerm)
     fmt.Println(wastebasket.Trash("test.txt"))
     wastebasket.Empty()
 }
