@@ -15,14 +15,35 @@ your OS it might still work on an older version, but there are no guarantees.
 
 There are no dependencies, it depends on the Shell32 API built into Windows.
 
-### Linux
+**No CGO required**
 
-Your either need to have `gio`, `gvfs-trash` or `trash-cli` installed.
-At least one of these is usually installed by default.
+### Linux (Unix)
+
+There are two (well, four) options you've got here. Wastebasket offers a native
+golang implementation of the [FreeDesktop Trash specification](https://specifications.freedesktop.org/trash-spec/trashspec-latest.html).
+This implementation is used by default. Alternatively, you can fall back to
+using wrapper code for binaries on your path. The supported binaries are
+the CLI interfaces for `gio`, `gvfs-trash` and `trash-cli`. At least one of
+these is usually installed by default on desktop systems.
+
+Additionally, the custom implementation should also work for systems such
+as BSD and its derivatives. However, this has not been tested and I do not
+plan on doing so, simply because GitHub does not currently support running
+tests on any BSD derivatives.
+
+If anyone is willing to host a custom runner (which I think is possible), then
+I'd be open to this though.
+
+**No CGO required**
 
 ### Mac OS
 
 The only dependency is `Finder`, which is installed by default.
+
+There are plans for a better implementation, that uses the Objective-C API
+provided by Mac OS, resulting in most likely much better performance.
+
+**No CGO required (Might change in the future)**
 
 ## How do i use it
 
@@ -36,7 +57,7 @@ and you are ready to go.
 
 Minimal Go example that creates a file, deletes it and empties the trashbin:
 
-```GO
+```go
 package main
 
 import (
