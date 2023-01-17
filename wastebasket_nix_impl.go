@@ -78,7 +78,10 @@ func customImplTrash(paths ...string) error {
 		return fmt.Errorf("error creating 'info' subdirectory for user trash directory: %w", err)
 	}
 
-	deletionDate := time.Now().Format(time.RFC3339)
+	// RFC3339 defined in the time package contains the timezone offset, which
+	// isn't defined by the spec and causes issues in some trash tools, such
+	// as trash-cli.
+	deletionDate := time.Now().Format("2006-01-02T15:04:05")
 
 	for _, path := range paths {
 		// Avoid running into weird errors and there isn't anything to do
