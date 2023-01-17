@@ -42,6 +42,14 @@ func fileExists(path string) (bool, error) {
 	return true, nil
 }
 
+// escapeUrl escapes the path according to the FreeDesktop Trash specification.
+// Which basically just refers to "RFC 2396, section 2".
+func escapeUrl(path string) string {
+	u := &url.URL{Path: path}
+	return u.EscapedPath()
+
+}
+
 func customImplTrash(paths ...string) error {
 	// FIXME Move logic that is uselessly repeated into init() function
 	// or cache where it makes sense.
@@ -171,8 +179,7 @@ func customImplTrash(paths ...string) error {
 			return err
 		}
 
-		// FIXME The escaping here is probably wrong. Needs fixing.
-		if err := os.WriteFile(trashedFileInfoPath, []byte(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", url.PathEscape(abs), deletionDate)), 0600); err != nil {
+		if err := os.WriteFile(trashedFileInfoPath, []byte(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", escapeUrl(abs), deletionDate)), 0600); err != nil {
 			return err
 		}
 	}
