@@ -1,4 +1,4 @@
-//go:build !windows && !darwin && !nix_wrapper
+//go:build !windows && !darwin
 
 package wastebasket
 
@@ -17,25 +17,31 @@ import (
 )
 
 var (
-	// homeTrashInfoCached makes sure we don't constantly check for the
+	// cachedInformation makes sure we don't constantly check for the
 	// directory and which drive it is on again.
-	homeTrashInfoCached *homeTrashInfo
-	homeTrashInfoMutex  = &sync.Mutex{}
+	cachedInformation *cache
+	cacheMutex        = &sync.Mutex{}
 )
 
-type homeTrashInfo struct {
+type cache struct {
 	// device (or partition) is required in order to decide which trashbin to
 	// use, as our implementation also supports non-home trashbins.
 	device uint64
 	path   string
 }
 
-func getHomeTrashInfo() (*homeTrashInfo, error) {
-	homeTrashInfoMutex.Lock()
-	defer homeTrashInfoMutex.Unlock()
+func getCache() (*cache, error) {
+	// Prevent locking, since we never null it again.
+	if cachedInformation != nil {
+		return cachedInformation, nil
+	}
 
-	if homeTrashInfoCached != nil {
-		return homeTrashInfoCached, nil
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+
+	// Make sure it hasn't been initialised in the meantime.
+	if cachedInformation != nil {
+		return cachedInformation, nil
 	}
 
 	var homeTrashDir string
@@ -68,11 +74,11 @@ func getHomeTrashInfo() (*homeTrashInfo, error) {
 		closestExistingParent = filepath.Dir(closestExistingParent)
 	}
 
-	homeTrashInfoCached = &homeTrashInfo{
+	cachedInformation = &cache{
 		device: stat.Dev,
 		path:   homeTrashDir,
 	}
-	return homeTrashInfoCached, nil
+	return cachedInformation, nil
 }
 
 func fileExists(path string) (bool, error) {
@@ -98,18 +104,7 @@ func escapeUrl(path string) string {
 
 // getTopDir returns the high folder til it reaches the top or finds the
 // mountpoint of a parent directory.
-func getTopDir(path string) (string, error) {
-	var err error
-	path, err = filepath.Abs(path)
-	if err != nil {
-		return "", err
-	}
-
-	stat := unix.Stat_t{}
-	if err := unix.Lstat(path, &stat); err != nil {
-		return "", err
-	}
-
+func getTopDir(stat *unix.Stat_t, path string) (string, error) {
 	parentDirStat := unix.Stat_t{}
 	// If path isn't a directory, then parentDir should be the mounted
 	// directory or other directory, but not the mounted directories parent
@@ -146,7 +141,7 @@ func customImplTrash(paths ...string) error {
 	// isn't defined by the spec and causes issues in some trash tools, such
 	// as trash-cli.
 	deletionDate := time.Now().Format("2006-01-02T15:04:05")
-	info, err := getHomeTrashInfo()
+	cache, err := getCache()
 	if err != nil {
 		return fmt.Errorf("error determining user trash directory: %w", err)
 	}
@@ -157,12 +152,18 @@ func customImplTrash(paths ...string) error {
 	)
 
 	for _, path := range paths {
+		var err error
+		path, err = filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+
 		if err := unix.Lstat(path, &stat); err != nil {
 			// File doesn't exist, there is no work to actually do, as there
 			// is nothing to delete. Additionally, the following code won't
 			// treat file absence without errors.
 			if err == unix.ENOENT {
-				return nil
+				continue
 			}
 
 			return err
@@ -170,8 +171,8 @@ func customImplTrash(paths ...string) error {
 
 		var trashDir, filesDir, infoDir string
 		// Deleting accross partitions / mounts
-		if info.device != stat.Dev {
-			topDir, err := getTopDir(path)
+		if cache.device != stat.Dev {
+			topDir, err := getTopDir(&stat, path)
 			if err != nil {
 				return err
 			}
@@ -201,7 +202,7 @@ func customImplTrash(paths ...string) error {
 
 		// Fallback to home trash.
 		if trashDir == "" {
-			trashDir = info.path
+			trashDir = cache.path
 			filesDir = filepath.Join(trashDir, "files")
 			infoDir = filepath.Join(trashDir, "info")
 		}
@@ -238,7 +239,6 @@ func customImplTrash(paths ...string) error {
 			}
 		}
 
-		var trashFileInfoHandle *os.File
 		if trashedFilePathExists || trashedFileInfoPathExists {
 			extension := filepath.Ext(baseName)
 			baseNameNoExtension := strings.TrimSuffix(baseName, extension)
@@ -251,19 +251,10 @@ func customImplTrash(paths ...string) error {
 				if exists, err := fileExists(trashedFilePath); err != nil || exists {
 					continue
 				}
-
 				trashedFileInfoPath = filepath.Join(infoDir, newBaseName+".trashinfo")
-				// Simply creating the file is cheaper than checking for existence first.
-				trashFileInfoHandle, err = os.OpenFile(trashedFileInfoPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-				if err != nil {
-					if os.IsExist(err) {
-						continue
-					}
-					return err
+				if exists, err := fileExists(trashedFileInfoPath); err != nil || exists {
+					continue
 				}
-
-				//FIXME Close earlier where possible
-				defer trashFileInfoHandle.Close()
 
 				// We found a valid name, where neither the file itself, nor
 				// the trashinfo file exist.
@@ -301,12 +292,7 @@ func customImplTrash(paths ...string) error {
 	WRITE_FILE_INFO:
 		// FIXME Support relative paths. Absolute paths may only be used
 		// in the home trash.
-		abs, err := filepath.Abs(path)
-		if err != nil {
-			return err
-		}
-
-		if _, err := trashFileInfoHandle.Write([]byte(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", escapeUrl(abs), deletionDate))); err != nil {
+		if err := os.WriteFile(trashedFileInfoPath, []byte(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", escapeUrl(path), deletionDate)), 0600); err != nil {
 			return err
 		}
 	}

@@ -21,10 +21,6 @@ There are no dependencies, it depends on the Shell32 API built into Windows.
 
 There are two (well, four) options you've got here. Wastebasket offers a native
 golang implementation of the [FreeDesktop Trash specification](https://specifications.freedesktop.org/trash-spec/trashspec-latest.html).
-This implementation is used by default. Alternatively, you can fall back to
-using wrapper code for binaries on your path. The supported binaries are
-the CLI interfaces for `gio`, `gvfs-trash` and `trash-cli`. At least one of
-these is usually installed by default on desktop systems.
 
 Additionally, the custom implementation should also work for systems such
 as BSD and its derivatives. However, this has not been tested and I do not

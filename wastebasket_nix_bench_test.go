@@ -1,4 +1,4 @@
-//go:build !windows && !darwin && nix_wrapper_impl && !nix_wrapper
+//go:build !windows && !darwin && nix_wrapper_impl
 
 package wastebasket
 
