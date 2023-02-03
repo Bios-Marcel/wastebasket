@@ -4,6 +4,7 @@ package wastebasket
 
 import (
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"os/user"
@@ -19,8 +20,9 @@ import (
 var (
 	// cachedInformation makes sure we don't constantly check for the
 	// directory and which drive it is on again.
-	cachedInformation *cache
-	cacheMutex        = &sync.Mutex{}
+	cachedInformation = &cache{
+		init: &sync.Once{},
+	}
 )
 
 type cache struct {
@@ -28,57 +30,51 @@ type cache struct {
 	// use, as our implementation also supports non-home trashbins.
 	device uint64
 	path   string
+
+	init *sync.Once
+	err  error
 }
 
 func getCache() (*cache, error) {
-	// Prevent locking, since we never null it again.
-	if cachedInformation != nil {
-		return cachedInformation, nil
-	}
-
-	cacheMutex.Lock()
-	defer cacheMutex.Unlock()
-
-	// Make sure it hasn't been initialised in the meantime.
-	if cachedInformation != nil {
-		return cachedInformation, nil
-	}
-
-	var homeTrashDir string
-	// On some big distros, such as Ubuntu for example, this variable isn't
-	// set. Instead, we will fallback to what Ubuntu does for now.
-	if dataHome := os.Getenv("XDG_DATA_HOME"); dataHome == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, err
-		}
-
-		homeTrashDir = filepath.Join(homeDir, ".local", "share", "Trash")
-	} else {
-		homeTrashDir = filepath.Join(dataHome, "Trash")
-	}
-
-	// Since the actual trash directory might not yet exist, we try to go up
-	// the hierarchy in order to find out which device / partition the trash
-	// will be on.
-	stat := unix.Stat_t{}
-	for closestExistingParent := filepath.Dir(homeTrashDir); ; {
-		if err := unix.Lstat(closestExistingParent, &stat); err != nil {
-			if errno, ok := err.(unix.Errno); !ok || errno != unix.ENOENT {
-				return nil, err
+	cachedInformation.init.Do(func() {
+		var homeTrashDir string
+		// On some big distros, such as Ubuntu for example, this variable isn't
+		// set. Instead, we will fallback to what Ubuntu does for now.
+		if dataHome := os.Getenv("XDG_DATA_HOME"); dataHome == "" {
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				cachedInformation.err = err
+				return
 			}
-		} else if err == nil {
-			break
+
+			homeTrashDir = filepath.Join(homeDir, ".local", "share", "Trash")
+		} else {
+			homeTrashDir = filepath.Join(dataHome, "Trash")
 		}
 
-		closestExistingParent = filepath.Dir(closestExistingParent)
-	}
+		// Since the actual trash directory might not yet exist, we try to go up
+		// the hierarchy in order to find out which device / partition the trash
+		// will be on.
+		stat := unix.Stat_t{}
+		for closestExistingParent := filepath.Dir(homeTrashDir); ; {
+			if err := unix.Lstat(closestExistingParent, &stat); err != nil {
+				if errno, ok := err.(unix.Errno); !ok || errno != unix.ENOENT {
+					cachedInformation.err = err
+					return
+				}
+			} else if err == nil {
+				break
+			}
 
-	cachedInformation = &cache{
-		device: stat.Dev,
-		path:   homeTrashDir,
-	}
-	return cachedInformation, nil
+			closestExistingParent = filepath.Dir(closestExistingParent)
+		}
+
+		cachedInformation.device = stat.Dev
+		cachedInformation.path = homeTrashDir
+		cachedInformation.err = nil
+	})
+
+	return cachedInformation, cachedInformation.err
 }
 
 func fileExists(path string) (bool, error) {
@@ -131,11 +127,15 @@ func getTopDir(stat *unix.Stat_t, path string) (string, error) {
 }
 
 func customImplTrash(paths ...string) error {
-	// FIXME Check for sticky bit
-	// FIXME Check for symbolic links
+	// FIXME Allow absence of sticky b it via option, if not supported) by FS
+	// FIXME Check whether the trash directory is a smybolic link and don't use if so
 	// FIXME Check for permissions and set the correctly
 	// FIXME Copy metadata when moving across file systems
 	// FIXME Check which types of files we aren't allowed to delete.
+	// FIXME Query all mounts instead, as this will require only one file read
+	// instead of multiple Lstat calls, resulting in less time consumed.
+	// FIXME Decide whether we early exit on errors or try to delete all paths.
+	// Later, this can be a setting. The decision should be documented.
 
 	// RFC3339 defined in the time package contains the timezone offset, which
 	// isn't defined by the spec and causes issues in some trash tools, such
@@ -151,14 +151,14 @@ func customImplTrash(paths ...string) error {
 		statfs unix.Statfs_t
 	)
 
-	for _, path := range paths {
+	for _, absPath := range paths {
 		var err error
-		path, err = filepath.Abs(path)
+		absPath, err = filepath.Abs(absPath)
 		if err != nil {
 			return err
 		}
 
-		if err := unix.Lstat(path, &stat); err != nil {
+		if err := unix.Lstat(absPath, &stat); err != nil {
 			// File doesn't exist, there is no work to actually do, as there
 			// is nothing to delete. Additionally, the following code won't
 			// treat file absence without errors.
@@ -169,42 +169,77 @@ func customImplTrash(paths ...string) error {
 			return err
 		}
 
+		// We only support absolute filenames in the home trash. For
+		// topdirs, we use relative paths. This allows us to move a
+		// mount, while still keeping trash files recoverable.
+		var pathForTrashInfo string
+
 		var trashDir, filesDir, infoDir string
 		// Deleting accross partitions / mounts
 		if cache.device != stat.Dev {
-			topDir, err := getTopDir(&stat, path)
+			topDir, err := getTopDir(&stat, absPath)
 			if err != nil {
 				return err
 			}
 
-			var uid string
-			if currentUser, err := user.Current(); err != nil {
-				return err
-			} else {
-				uid = currentUser.Uid
-			}
+			// While getTopDir won't return an empty string with its current
+			// impl, this can change in the future, so beteter be safe than
+			// sorry.
+			if topDir != "" {
+				var uid string
+				if currentUser, err := user.Current(); err != nil {
+					return err
+				} else {
+					uid = currentUser.Uid
+				}
 
-			trashDir = filepath.Join(topDir, ".Trash")
-			if exists, err := fileExists(trashDir); err != nil {
-				return err
-			} else if !exists {
-				// If .Trash doesn't exist, we need to check for .Trash-$uid
-				// and create it if it doesn't exist. The spec however
-				// doesn't indicate that we should do the same with .Trash.
-				trashDir = filepath.Join(topDir, ".Trash-"+uid)
-				filesDir = filepath.Join(trashDir, "files")
-				infoDir = filepath.Join(trashDir, "info")
-			} else {
-				filesDir = filepath.Join(trashDir, uid, "files")
-				infoDir = filepath.Join(trashDir, uid, "info")
+				trashDir = filepath.Join(topDir, ".Trash")
+
+				var useFallbackTopdirTrash bool
+				if trashDirStat, err := os.Stat(trashDir); err != nil {
+					if !os.IsNotExist(err) {
+						return err
+					}
+					useFallbackTopdirTrash = true
+				} else {
+					if trashDirStat.Mode()&fs.ModeSticky != 0 {
+						// If the topdir trash directory contains a trash for all
+						// users, it needs to have the sticky bit set. This is only
+						// required for .Trash though, not for .Trash-$uid.
+						useFallbackTopdirTrash = true
+					} else if trashDirStat.Mode()&os.ModeSymlink != 0 {
+						// Symlinks must not be used as per spec.
+						useFallbackTopdirTrash = true
+					}
+				}
+
+				pathForTrashInfo, err = filepath.Rel(topDir, absPath)
+				if err != nil {
+					return err
+				}
+
+				if !useFallbackTopdirTrash {
+					filesDir = filepath.Join(trashDir, uid, "files")
+					infoDir = filepath.Join(trashDir, uid, "info")
+				} else {
+					// If .Trash doesn't exist, we need to check for .Trash-$uid
+					// and create it if it doesn't exist. The spec however
+					// doesn't indicate that we should do the same with .Trash.
+					trashDir = filepath.Join(topDir, ".Trash-"+uid)
+					filesDir = filepath.Join(trashDir, "files")
+					infoDir = filepath.Join(trashDir, "info")
+				}
+
 			}
 		}
 
-		// Fallback to home trash.
 		if trashDir == "" {
+			// Fallback to home trash.
 			trashDir = cache.path
 			filesDir = filepath.Join(trashDir, "files")
 			infoDir = filepath.Join(trashDir, "info")
+			// Home trash only supports absolute paths.
+			pathForTrashInfo = absPath
 		}
 
 		if err := os.MkdirAll(filesDir, 0700); err != nil && !os.IsExist(err) {
@@ -214,7 +249,7 @@ func customImplTrash(paths ...string) error {
 			return fmt.Errorf("error creating directory '%s': %w", infoDir, err)
 		}
 
-		baseName := filepath.Base(path)
+		baseName := filepath.Base(absPath)
 		trashedFilePath := filepath.Join(filesDir, baseName)
 		trashedFileInfoPath := filepath.Join(infoDir, baseName) + ".trashinfo"
 
@@ -262,19 +297,19 @@ func customImplTrash(paths ...string) error {
 			}
 		}
 
-		if err := os.Rename(path, trashedFilePath); err != nil {
+		if err := os.Rename(absPath, trashedFilePath); err != nil {
 			// Moving across different filesystems causes os.Rename to fail.
 			// Therefore we need to do a costly copy followed by a remove.
 			if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err.Error() == "invalid cross-device link" {
 				if err := unix.Statfs(trashDir, &statfs); err == nil {
 					trashDirFsType := statfs.Type
-					if err := unix.Statfs(path, &statfs); err == nil {
+					if err := unix.Statfs(absPath, &statfs); err == nil {
 						if trashDirFsType != statfs.Type {
-							if err := copyLib.Copy(path, trashedFilePath); err != nil {
+							if err := copyLib.Copy(absPath, trashedFilePath); err != nil {
 								return fmt.Errorf("error copying files into trash directory: %w", err)
 							}
 
-							if err := os.RemoveAll(path); err != nil {
+							if err := os.RemoveAll(absPath); err != nil {
 								return fmt.Errorf("error removing files (a copy into the trash has been made successfully): %w", err)
 							}
 
@@ -290,9 +325,7 @@ func customImplTrash(paths ...string) error {
 		}
 
 	WRITE_FILE_INFO:
-		// FIXME Support relative paths. Absolute paths may only be used
-		// in the home trash.
-		if err := os.WriteFile(trashedFileInfoPath, []byte(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", escapeUrl(path), deletionDate)), 0600); err != nil {
+		if err := os.WriteFile(trashedFileInfoPath, []byte(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", escapeUrl(pathForTrashInfo), deletionDate)), 0600); err != nil {
 			return err
 		}
 	}
