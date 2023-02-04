@@ -77,17 +77,32 @@ func getCache() (*cache, error) {
 	return cachedInformation, cachedInformation.err
 }
 
+// fileExists omits the parts to make this usable cross-platform and
+// therefore saves a minimal amount of CPU cycles and some allocations.
 func fileExists(path string) (bool, error) {
-	if _, err := os.Stat(path); err != nil {
-		if !os.IsNotExist(err) {
+	var (
+		stat unix.Stat_t
+		err  error
+	)
+
+RETRY:
+	for {
+		err = unix.Stat(path, &stat)
+		switch err {
+		case nil:
+			// No issue, exists
+			return true, nil
+		case unix.EINTR:
+			// Doesn't exist
+			continue RETRY
+		case unix.ENOENT:
+			// A non-error basically which tells you to try again.
+			return false, nil
+		default:
+			// Unexpected error
 			return false, err
 		}
-
-		// File doesn't exist
-		return false, nil
 	}
-
-	return true, nil
 }
 
 // escapeUrl escapes the path according to the FreeDesktop Trash specification.
@@ -128,7 +143,6 @@ func getTopDir(stat *unix.Stat_t, path string) (string, error) {
 
 func customImplTrash(paths ...string) error {
 	// FIXME Allow absence of sticky b it via option, if not supported) by FS
-	// FIXME Check whether the trash directory is a smybolic link and don't use if so
 	// FIXME Check for permissions and set the correctly
 	// FIXME Copy metadata when moving across file systems
 	// FIXME Check which types of files we aren't allowed to delete.
@@ -260,21 +274,30 @@ func customImplTrash(paths ...string) error {
 		// We simply count up in this case. Since we've got the info file, we
 		// can map back to the original name later on.
 
-		var trashedFilePathExists, trashedFileInfoPathExists bool
+		var infoFileHandle *os.File
 		if exists, err := fileExists(trashedFilePath); err != nil {
 			return err
-		} else {
-			trashedFilePathExists = exists
-		}
-		if !trashedFilePathExists {
-			if exists, err := fileExists(trashedFileInfoPath); err != nil {
-				return err
-			} else {
-				trashedFileInfoPathExists = exists
+		} else if !exists {
+			// We save ourselves the fileExists check, as we can combine it
+			// with the opening of the file handle. This is a performance
+			// optimisation.
+			infoFileHandle, err = os.OpenFile(trashedFileInfoPath, os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0600)
+			if err != nil {
+				if !os.IsExist(err) {
+					return err
+				}
 			}
+
+			// While we close manually later, we want to prevent a leak.
+			defer func() {
+				infoFileHandle.Close()
+			}()
 		}
 
-		if trashedFilePathExists || trashedFileInfoPathExists {
+		// If there isn't a valid info file handle yet, it means that one
+		// of the two file names were already in use, requiring us to find
+		// two unique filenames eiter way.
+		if infoFileHandle == nil {
 			extension := filepath.Ext(baseName)
 			baseNameNoExtension := strings.TrimSuffix(baseName, extension)
 			for i := uint64(1); i != 0; i = i + 1 {
@@ -286,9 +309,12 @@ func customImplTrash(paths ...string) error {
 				if exists, err := fileExists(trashedFilePath); err != nil || exists {
 					continue
 				}
-				trashedFileInfoPath = filepath.Join(infoDir, newBaseName+".trashinfo")
-				if exists, err := fileExists(trashedFileInfoPath); err != nil || exists {
-					continue
+				infoFileHandle, err = os.OpenFile(filepath.Join(infoDir, newBaseName+".trashinfo"), os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0600)
+				if err != nil {
+					if os.IsExist(err) {
+						continue
+					}
+					return err
 				}
 
 				// We found a valid name, where neither the file itself, nor
@@ -325,7 +351,7 @@ func customImplTrash(paths ...string) error {
 		}
 
 	WRITE_FILE_INFO:
-		if err := os.WriteFile(trashedFileInfoPath, []byte(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", escapeUrl(pathForTrashInfo), deletionDate)), 0600); err != nil {
+		if _, err = infoFileHandle.WriteString(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", escapeUrl(pathForTrashInfo), deletionDate)); err != nil {
 			return err
 		}
 	}
