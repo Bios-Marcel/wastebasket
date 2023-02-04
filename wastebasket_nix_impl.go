@@ -137,10 +137,6 @@ func customImplTrash(paths ...string) error {
 		return fmt.Errorf("error determining user trash directory: %w", err)
 	}
 
-	var (
-		statfs unix.Statfs_t
-	)
-
 	for _, absPath := range paths {
 		var err error
 		absPath, err = filepath.Abs(absPath)
@@ -298,6 +294,7 @@ func customImplTrash(paths ...string) error {
 			// Moving across different filesystems causes os.Rename to fail.
 			// Therefore we need to do a costly copy followed by a remove.
 			if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err.Error() == "invalid cross-device link" {
+				var statfs unix.Statfs_t
 				if err := unix.Statfs(trashDir, &statfs); err == nil {
 					trashDirFsType := statfs.Type
 					if err := unix.Statfs(absPath, &statfs); err == nil {
