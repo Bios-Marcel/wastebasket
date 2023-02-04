@@ -26,10 +26,8 @@ var (
 )
 
 type cache struct {
-	// device (or partition) is required in order to decide which trashbin to
-	// use, as our implementation also supports non-home trashbins.
-	device uint64
 	path   string
+	topdir string
 
 	init *sync.Once
 	err  error
@@ -52,26 +50,15 @@ func getCache() (*cache, error) {
 			homeTrashDir = filepath.Join(dataHome, "Trash")
 		}
 
-		// Since the actual trash directory might not yet exist, we try to go up
-		// the hierarchy in order to find out which device / partition the trash
-		// will be on.
-		stat := unix.Stat_t{}
-		for closestExistingParent := filepath.Dir(homeTrashDir); ; {
-			if err := unix.Lstat(closestExistingParent, &stat); err != nil {
-				if errno, ok := err.(unix.Errno); !ok || errno != unix.ENOENT {
-					cachedInformation.err = err
-					return
-				}
-			} else if err == nil {
-				break
-			}
-
-			closestExistingParent = filepath.Dir(closestExistingParent)
-		}
-
-		cachedInformation.device = stat.Dev
 		cachedInformation.path = homeTrashDir
-		cachedInformation.err = nil
+
+		homeTopdir, err := topdir(cachedInformation.path)
+		if err != nil {
+			cachedInformation.err = err
+		} else {
+			cachedInformation.err = nil
+			cachedInformation.topdir = homeTopdir
+		}
 	})
 
 	return cachedInformation, cachedInformation.err
@@ -113,32 +100,22 @@ func escapeUrl(path string) string {
 
 }
 
-// getTopDir returns the high folder til it reaches the top or finds the
-// mountpoint of a parent directory.
-func getTopDir(stat *unix.Stat_t, path string) (string, error) {
-	parentDirStat := unix.Stat_t{}
-	// If path isn't a directory, then parentDir should be the mounted
-	// directory or other directory, but not the mounted directories parent
-	// and we shouldn't return at that point, therefore we assume this to be
-	// a safe way of doing things.
-	lastParentDir := path
-	parentDir := filepath.Dir(path)
-	for {
-		if parentDir == path || parentDir == "/" {
-			return parentDir, nil
-		}
-
-		if err := unix.Lstat(parentDir, &parentDirStat); err != nil {
-			return "", err
-		}
-
-		if parentDirStat.Dev != stat.Dev {
-			return lastParentDir, nil
-		}
-
-		lastParentDir = parentDir
-		parentDir = filepath.Dir(parentDir)
+func topdir(path string) (string, error) {
+	mounts, err := Mounts()
+	if err != nil {
+		return "", err
 	}
+
+	var matchingMount string
+	for _, mount := range mounts {
+		// Technically mounts can be nested, so we can have more than one
+		// match, but want the deepest possible match.
+		if strings.HasPrefix(path, mount) && len(mount) > len(matchingMount) {
+			matchingMount = mount
+		}
+	}
+
+	return matchingMount, nil
 }
 
 func customImplTrash(paths ...string) error {
@@ -161,7 +138,6 @@ func customImplTrash(paths ...string) error {
 	}
 
 	var (
-		stat   unix.Stat_t
 		statfs unix.Statfs_t
 	)
 
@@ -172,14 +148,14 @@ func customImplTrash(paths ...string) error {
 			return err
 		}
 
-		if err := unix.Lstat(absPath, &stat); err != nil {
-			// File doesn't exist, there is no work to actually do, as there
-			// is nothing to delete. Additionally, the following code won't
-			// treat file absence without errors.
-			if err == unix.ENOENT {
-				continue
-			}
+		if exists, err := fileExists(absPath); err != nil {
+			return err
+		} else if !exists {
+			continue
+		}
 
+		pathTopdir, err := topdir(absPath)
+		if err != nil {
 			return err
 		}
 
@@ -190,16 +166,11 @@ func customImplTrash(paths ...string) error {
 
 		var trashDir, filesDir, infoDir string
 		// Deleting accross partitions / mounts
-		if cache.device != stat.Dev {
-			topDir, err := getTopDir(&stat, absPath)
-			if err != nil {
-				return err
-			}
-
+		if cache.topdir != pathTopdir {
 			// While getTopDir won't return an empty string with its current
 			// impl, this can change in the future, so beteter be safe than
 			// sorry.
-			if topDir != "" {
+			if pathTopdir != "" {
 				var uid string
 				if currentUser, err := user.Current(); err != nil {
 					return err
@@ -207,7 +178,7 @@ func customImplTrash(paths ...string) error {
 					uid = currentUser.Uid
 				}
 
-				trashDir = filepath.Join(topDir, ".Trash")
+				trashDir = filepath.Join(pathTopdir, ".Trash")
 
 				var useFallbackTopdirTrash bool
 				if trashDirStat, err := os.Stat(trashDir); err != nil {
@@ -227,7 +198,7 @@ func customImplTrash(paths ...string) error {
 					}
 				}
 
-				pathForTrashInfo, err = filepath.Rel(topDir, absPath)
+				pathForTrashInfo, err = filepath.Rel(pathTopdir, absPath)
 				if err != nil {
 					return err
 				}
@@ -239,7 +210,7 @@ func customImplTrash(paths ...string) error {
 					// If .Trash doesn't exist, we need to check for .Trash-$uid
 					// and create it if it doesn't exist. The spec however
 					// doesn't indicate that we should do the same with .Trash.
-					trashDir = filepath.Join(topDir, ".Trash-"+uid)
+					trashDir = filepath.Join(pathTopdir, ".Trash-"+uid)
 					filesDir = filepath.Join(trashDir, "files")
 					infoDir = filepath.Join(trashDir, "info")
 				}

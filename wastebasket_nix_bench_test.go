@@ -21,10 +21,12 @@ func create_files(count int) []string {
 	return files
 }
 
+const manyFilesCount = 20
+
 func Benchmark_gio_trash_manyFiles(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		files := create_files(100)
+		files := create_files(manyFilesCount)
 		b.StartTimer()
 
 		if err := gioTrash(files...); err != nil {
@@ -36,7 +38,7 @@ func Benchmark_gio_trash_manyFiles(b *testing.B) {
 func Benchmark_customImpl_trash_manyFiles(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		files := create_files(100)
+		files := create_files(manyFilesCount)
 		b.StartTimer()
 
 		if err := customImplTrash(files...); err != nil {
