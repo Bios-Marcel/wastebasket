@@ -25,7 +25,10 @@ var (
 )
 
 type cache struct {
-	path   string
+	// path is the path to the trash dir, for example
+	//   /home/marcel/.local/share/Trash.
+	path string
+	// topdir is the closes mountpoint of `path`.
 	topdir string
 
 	init *sync.Once
@@ -321,5 +324,54 @@ func customImplEmpty() error {
 	//        nix.ClearUserTrashbin(),
 	//        darwin.ClearAllAvailableTrashbins(),
 	//   )
+
+	cache, err := getCache()
+	if err != nil {
+		return err
+	}
+
+	if err := removeAllIfExists(cache.path); err != nil {
+		return err
+	}
+
+	mounts, err := Mounts()
+	if err != nil {
+		return err
+	}
+
+	currentUser, err := user.Current()
+	if err != nil {
+		return err
+	}
+	uid := currentUser.Uid
+
+	for _, mount := range mounts {
+		if err := removeAllIfExists(filepath.Join(mount, ".Trash", uid)); err != nil {
+			return err
+		}
+		if err := removeAllIfExists(filepath.Join(mount, fmt.Sprintf(".Trash-%s", uid))); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func removeAllIfExists(path string) error {
+	if err := os.RemoveAll(path); err != nil {
+		pathErr, ok := err.(*os.PathError)
+		if ok {
+			switch pathErr.Err {
+			case unix.ENOENT:
+				// Occurs if the file does not exist, which is great, nothing
+				// to do for us.
+				return nil
+			case unix.EAFNOSUPPORT:
+				// Occurs if the filesystem is for example read-only.
+				return nil
+			}
+		}
+	}
+
 	return nil
 }
