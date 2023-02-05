@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"math"
 	"os"
+	"strings"
 	"sync/atomic"
 )
 
@@ -15,6 +16,8 @@ import (
 // at least prepare a buffer of that size. This must only be accessed atomicly.
 var lastMountCount int32
 
+// Mounts reads /proc/mounts and returns all mounts found, excluding
+// everything on the devices sysfs, rootfs, cgroup and /dev/ paths.
 func Mounts() ([]string, error) {
 	handle, err := os.Open("/proc/mounts")
 	if err != nil {
@@ -35,6 +38,20 @@ func Mounts() ([]string, error) {
 
 		if i := bytes.IndexByte(data, '\n'); i >= 0 {
 			if firstSpace := bytes.IndexByte(data, ' '); firstSpace >= 0 {
+				// Some device won't contain a trash either way or might be
+				// dangerous to interact with.
+				device := string(data[:firstSpace])
+				switch device {
+				case "rootfs", "sysfs", "cgroup":
+					// Skip line
+					return i + 1, nil, nil
+				default:
+					// Devices don't usually contain files
+					if strings.HasPrefix(device, "/dev/") {
+						return i + 1, nil, nil
+					}
+				}
+
 				if nextSpace := bytes.IndexByte(data[firstSpace+1:], ' '); nextSpace >= 0 {
 					return i + 1, data[firstSpace+1 : firstSpace+1+nextSpace], nil
 				}
