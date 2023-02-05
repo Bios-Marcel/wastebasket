@@ -363,12 +363,16 @@ func removeAllIfExists(path string) error {
 		if ok {
 			switch pathErr.Err {
 			case unix.ENOENT:
-				// Occurs if the file does not exist, which is great, nothing
-				// to do for us.
+				// A non-error basically which tells you to try again.
+				return removeAllIfExists(path)
+			case unix.ENOTDIR:
+				// Not a directory
 				return nil
-			case unix.EAFNOSUPPORT:
-				// Occurs if the filesystem is for example read-only.
+			case unix.EROFS:
+				// Occurs if the filesystem is read-only.
 				return nil
+			default:
+				fmt.Println(pathErr.Err)
 			}
 		}
 	}
