@@ -1,6 +1,6 @@
 //go:build !windowss && !darwin
 
-package wastebasket
+package internal
 
 import (
 	"bufio"

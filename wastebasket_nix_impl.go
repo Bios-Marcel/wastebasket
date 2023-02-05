@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Bios-Marcel/wastebasket/internal"
 	"golang.org/x/sys/unix"
 )
 
@@ -103,7 +104,7 @@ func escapeUrl(path string) string {
 }
 
 func topdir(path string) (string, error) {
-	mounts, err := Mounts()
+	mounts, err := internal.Mounts()
 	if err != nil {
 		return "", err
 	}
@@ -334,7 +335,7 @@ func customImplEmpty() error {
 		return err
 	}
 
-	mounts, err := Mounts()
+	mounts, err := internal.Mounts()
 	if err != nil {
 		return err
 	}
