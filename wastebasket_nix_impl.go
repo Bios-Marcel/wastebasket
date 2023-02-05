@@ -144,12 +144,6 @@ func customImplTrash(paths ...string) error {
 			return err
 		}
 
-		if exists, err := fileExists(absPath); err != nil {
-			return err
-		} else if !exists {
-			continue
-		}
-
 		pathTopdir, err := topdir(absPath)
 		if err != nil {
 			return err
@@ -256,9 +250,7 @@ func customImplTrash(paths ...string) error {
 			}
 
 			// While we close manually later, we want to prevent a leak.
-			defer func() {
-				infoFileHandle.Close()
-			}()
+			defer infoFileHandle.Close()
 		}
 
 		// If there isn't a valid info file handle yet, it means that one
@@ -284,6 +276,8 @@ func customImplTrash(paths ...string) error {
 					return err
 				}
 
+				defer infoFileHandle.Close()
+
 				// We found a valid name, where neither the file itself, nor
 				// the trashinfo file exist.
 				break
@@ -291,6 +285,17 @@ func customImplTrash(paths ...string) error {
 		}
 
 		if err := os.Rename(absPath, trashedFilePath); err != nil {
+			// We save ourselvse the exists check at the start of the loop, as
+			// deleting non existing files probably does not happen that often.
+			if os.IsNotExist(err) {
+				// Since we already create the info file, we will have to manually delete it again.
+				name := infoFileHandle.Name()
+				infoFileHandle.Close()
+				// We ignore the error here, it isn't super important
+				os.Remove(name)
+				continue
+			}
+
 			// Moving across different filesystems causes os.Rename to fail.
 			// Therefore we need to do a costly copy followed by a remove.
 			if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err.Error() == "invalid cross-device link" {
