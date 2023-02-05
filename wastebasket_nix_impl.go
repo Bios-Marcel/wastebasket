@@ -100,7 +100,6 @@ RETRY:
 func escapeUrl(path string) string {
 	u := &url.URL{Path: path}
 	return u.EscapedPath()
-
 }
 
 func topdir(path string) (string, error) {
@@ -122,12 +121,6 @@ func topdir(path string) (string, error) {
 }
 
 func customImplTrash(paths ...string) error {
-	// FIXME Allow absence of sticky bit via option, if not supported) by FS
-	// FIXME Check for permissions and set the correctly
-	// FIXME Implement deletion across partitions if required somehow.
-	// FIXME Decide whether we early exit on errors or try to delete all paths.
-	// Later, this can be a setting. The decision should be documented.
-
 	// RFC3339 defined in the time package contains the timezone offset, which
 	// isn't defined by the spec and causes issues in some trash tools, such
 	// as trash-cli.
@@ -309,23 +302,6 @@ func customImplTrash(paths ...string) error {
 }
 
 func customImplEmpty() error {
-	// FIXME Figure out, whether this should only empty whatever the spec would
-	// also demanding deleting into or all reachable trashbins. An alternative
-	// would be to clear the topdir trash, if available and the user trash.
-	// Considering the nature of wastebasket, it would probably be best to clear
-	// the user trash.
-	//
-	// In the future, we could optionally allow passing a path here, so the
-	// user can define a custom path or clearing options.
-	//
-	// This could have a format where you can define different options for
-	// different platforms, such as:
-	//   wastebasket.Empty(
-	//	      wastebasket.Pattern("*.txt"),
-	//        nix.ClearUserTrashbin(),
-	//        darwin.ClearAllAvailableTrashbins(),
-	//   )
-
 	cache, err := getCache()
 	if err != nil {
 		return err
