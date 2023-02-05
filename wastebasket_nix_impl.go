@@ -118,12 +118,9 @@ func topdir(path string) (string, error) {
 }
 
 func customImplTrash(paths ...string) error {
-	// FIXME Allow absence of sticky b it via option, if not supported) by FS
+	// FIXME Allow absence of sticky bit via option, if not supported) by FS
 	// FIXME Check for permissions and set the correctly
-	// FIXME Copy metadata when moving across file systems
-	// FIXME Check which types of files we aren't allowed to delete.
-	// FIXME Query all mounts instead, as this will require only one file read
-	// instead of multiple Lstat calls, resulting in less time consumed.
+	// FIXME Implement deletion across partitions if required somehow.
 	// FIXME Decide whether we early exit on errors or try to delete all paths.
 	// Later, this can be a setting. The decision should be documented.
 
