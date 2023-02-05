@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	copyLib "github.com/otiai10/copy"
 	"golang.org/x/sys/unix"
 )
 
@@ -296,34 +295,10 @@ func customImplTrash(paths ...string) error {
 				continue
 			}
 
-			// Moving across different filesystems causes os.Rename to fail.
-			// Therefore we need to do a costly copy followed by a remove.
-			if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err.Error() == "invalid cross-device link" {
-				var statfs unix.Statfs_t
-				if err := unix.Statfs(trashDir, &statfs); err == nil {
-					trashDirFsType := statfs.Type
-					if err := unix.Statfs(absPath, &statfs); err == nil {
-						if trashDirFsType != statfs.Type {
-							if err := copyLib.Copy(absPath, trashedFilePath); err != nil {
-								return fmt.Errorf("error copying files into trash directory: %w", err)
-							}
-
-							if err := os.RemoveAll(absPath); err != nil {
-								return fmt.Errorf("error removing files (a copy into the trash has been made successfully): %w", err)
-							}
-
-							// Success of special treatment, proceed normally
-							goto WRITE_FILE_INFO
-						}
-					}
-				}
-			}
-
 			// All special treatment failed, return original os.Rename error
 			return err
 		}
 
-	WRITE_FILE_INFO:
 		if _, err = infoFileHandle.WriteString(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", escapeUrl(pathForTrashInfo), deletionDate)); err != nil {
 			return err
 		}
