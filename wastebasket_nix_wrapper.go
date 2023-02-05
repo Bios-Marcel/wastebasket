@@ -1,3 +1,5 @@
+//go:build !windows && !darwin && nix_wrapper_impl
+
 package wastebasket
 
 import (
@@ -56,16 +58,6 @@ func gioTrash(paths ...string) error {
 	return errToolNotAvailable
 }
 
-func gvfsTrash(paths ...string) error {
-	if isCommandAvailable("gvfs-trash") {
-		// --force makes sure we don't get errors for non-existent files.
-		parameters := append([]string{"--force"}, paths...)
-		return exec.Command("gvfs-trash", parameters...).Run()
-	}
-
-	return errToolNotAvailable
-}
-
 func trashCli(paths ...string) error {
 	if isCommandAvailable("trash") {
 		//trash-cli throws 74 in case the file doesn't exist
@@ -85,6 +77,7 @@ func trashCli(paths ...string) error {
 	return errToolNotAvailable
 }
 
+<<<<<<< HEAD:wastebasket_linux.go
 // Empty clears the platforms trashbin.
 func Empty() error {
 	//gio is the tool that replaces gvfs, therefore it is the first choice.
@@ -109,17 +102,11 @@ func Empty() error {
 	return errNoToolsAvailable
 }
 
+=======
+>>>>>>> d6f9c35 (Create structure and benchmarks for new impl):wastebasket_nix_wrapper.go
 func gioEmpty() error {
 	if isCommandAvailable("gio") {
 		return exec.Command("gio", "trash", "--empty").Run()
-	}
-
-	return errToolNotAvailable
-}
-
-func gvfsEmpty() error {
-	if isCommandAvailable("gvfs-trash") {
-		return exec.Command("gvfs-trash", "--empty").Run()
 	}
 
 	return errToolNotAvailable

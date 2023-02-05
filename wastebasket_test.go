@@ -2,7 +2,6 @@ package wastebasket
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -152,6 +151,20 @@ func TestEmpty(t *testing.T) {
 	//Can I find a way to see if this actually worked?
 }
 
+func assertExists(t *testing.T, path string) {
+	_, err := os.Stat(path)
+	if err != nil {
+		t.Errorf("path '%s' doesn't exist", path)
+	}
+}
+
+func assertNotExists(t *testing.T, path string) {
+	_, err := os.Stat(path)
+	if !os.IsNotExist(err) {
+		t.Errorf("path '%s' exists, but shouldn't", path)
+	}
+}
+
 func trash(paths ...string) func() error {
 	return func() error {
 		return Trash(paths...)
@@ -164,7 +177,7 @@ func writeTestData(t *testing.T, paths ...string) func() {
 		if strings.HasSuffix(path, "/") {
 			err = os.Mkdir(path, os.ModePerm)
 		} else {
-			err = ioutil.WriteFile(path, []byte("test"), os.ModePerm)
+			err = os.WriteFile(path, []byte("test"), os.ModePerm)
 		}
 		if err != nil {
 			t.Errorf("Error writing test data. (%s)", err.Error())
