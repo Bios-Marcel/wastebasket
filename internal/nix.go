@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/url"
 	"os"
-	"strings"
 	"sync/atomic"
 
 	"golang.org/x/sys/unix"
@@ -45,18 +44,20 @@ func Mounts() ([]string, error) {
 				// dangerous to interact with.
 				device := string(data[:firstSpace])
 				switch device {
-				case "rootfs", "sysfs", "cgroup":
+				case "rootfs", "sysfs", "cgroup", "cgroup2":
 					// Skip line
 					return i + 1, nil, nil
-				default:
-					// Devices don't usually contain files
-					if strings.HasPrefix(device, "/dev/") {
-						return i + 1, nil, nil
-					}
 				}
 
 				if nextSpace := bytes.IndexByte(data[firstSpace+1:], ' '); nextSpace >= 0 {
-					return i + 1, data[firstSpace+1 : firstSpace+1+nextSpace], nil
+					path := data[firstSpace+1 : firstSpace+1+nextSpace]
+					// Devices don't usually contain files and /sys should
+					// be off-limits anyway.
+					if bytes.HasPrefix(path, []byte("/dev/")) || bytes.HasPrefix(path, []byte("/sys/")) {
+						return i + 1, nil, nil
+					}
+
+					return i + 1, path, nil
 				}
 			}
 
