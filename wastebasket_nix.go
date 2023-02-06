@@ -5,7 +5,6 @@ package wastebasket
 import (
 	"fmt"
 	"io/fs"
-	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"time"
 
 	"github.com/Bios-Marcel/wastebasket/internal"
-	"golang.org/x/sys/unix"
 )
 
 var (
@@ -67,41 +65,6 @@ func getCache() (*cache, error) {
 	return cachedInformation, cachedInformation.err
 }
 
-// fileExists omits the parts to make this usable cross-platform and
-// therefore saves a minimal amount of CPU cycles and some allocations.
-func fileExists(path string) (bool, error) {
-	var (
-		stat unix.Stat_t
-		err  error
-	)
-
-RETRY:
-	for {
-		err = unix.Stat(path, &stat)
-		switch err {
-		case nil:
-			// No issue, exists
-			return true, nil
-		case unix.EINTR:
-			// Doesn't exist
-			continue RETRY
-		case unix.ENOENT:
-			// A non-error basically which tells you to try again.
-			return false, nil
-		default:
-			// Unexpected error
-			return false, err
-		}
-	}
-}
-
-// escapeUrl escapes the path according to the FreeDesktop Trash specification.
-// Which basically just refers to "RFC 2396, section 2".
-func escapeUrl(path string) string {
-	u := &url.URL{Path: path}
-	return u.EscapedPath()
-}
-
 func topdir(path string) (string, error) {
 	mounts, err := internal.Mounts()
 	if err != nil {
@@ -120,7 +83,7 @@ func topdir(path string) (string, error) {
 	return matchingMount, nil
 }
 
-func customImplTrash(paths ...string) error {
+func Trash(paths ...string) error {
 	// RFC3339 defined in the time package contains the timezone offset, which
 	// isn't defined by the spec and causes issues in some trash tools, such
 	// as trash-cli.
@@ -229,10 +192,10 @@ func customImplTrash(paths ...string) error {
 		// can map back to the original name later on.
 
 		var infoFileHandle *os.File
-		if exists, err := fileExists(trashedFilePath); err != nil {
+		if exists, err := internal.FileExists(trashedFilePath); err != nil {
 			return err
 		} else if !exists {
-			// We save ourselves the fileExists check, as we can combine it
+			// We save ourselves the FileExists check, as we can combine it
 			// with the opening of the file handle. This is a performance
 			// optimisation.
 			infoFileHandle, err = os.OpenFile(trashedFileInfoPath, os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0600)
@@ -258,7 +221,7 @@ func customImplTrash(paths ...string) error {
 				// The names of both files must always be the same, putting
 				// aside the .trashinfo extension.
 				trashedFilePath = filepath.Join(filesDir, newBaseName)
-				if exists, err := fileExists(trashedFilePath); err != nil || exists {
+				if exists, err := internal.FileExists(trashedFilePath); err != nil || exists {
 					continue
 				}
 				infoFileHandle, err = os.OpenFile(filepath.Join(infoDir, newBaseName+".trashinfo"), os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0600)
@@ -293,7 +256,7 @@ func customImplTrash(paths ...string) error {
 			return err
 		}
 
-		if _, err = infoFileHandle.WriteString(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", escapeUrl(pathForTrashInfo), deletionDate)); err != nil {
+		if _, err = infoFileHandle.WriteString(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", internal.EscapeUrl(pathForTrashInfo), deletionDate)); err != nil {
 			return err
 		}
 	}
@@ -301,13 +264,13 @@ func customImplTrash(paths ...string) error {
 	return nil
 }
 
-func customImplEmpty() error {
+func Empty() error {
 	cache, err := getCache()
 	if err != nil {
 		return err
 	}
 
-	if err := removeAllIfExists(cache.path); err != nil {
+	if err := internal.RemoveAllIfExists(cache.path); err != nil {
 		return err
 	}
 
@@ -323,34 +286,11 @@ func customImplEmpty() error {
 	uid := currentUser.Uid
 
 	for _, mount := range mounts {
-		if err := removeAllIfExists(filepath.Join(mount, ".Trash", uid)); err != nil {
+		if err := internal.RemoveAllIfExists(filepath.Join(mount, ".Trash", uid)); err != nil {
 			return err
 		}
-		if err := removeAllIfExists(filepath.Join(mount, fmt.Sprintf(".Trash-%s", uid))); err != nil {
+		if err := internal.RemoveAllIfExists(filepath.Join(mount, fmt.Sprintf(".Trash-%s", uid))); err != nil {
 			return err
-		}
-	}
-
-	return nil
-}
-
-func removeAllIfExists(path string) error {
-	if err := os.RemoveAll(path); err != nil {
-		pathErr, ok := err.(*os.PathError)
-		if ok {
-			switch pathErr.Err {
-			case unix.ENOENT:
-				// A non-error basically which tells you to try again.
-				return removeAllIfExists(path)
-			case unix.ENOTDIR:
-				// Not a directory
-				return nil
-			case unix.EROFS:
-				// Occurs if the filesystem is read-only.
-				return nil
-			default:
-				fmt.Println(pathErr.Err)
-			}
 		}
 	}
 

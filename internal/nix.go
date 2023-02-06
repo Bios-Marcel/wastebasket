@@ -6,9 +6,12 @@ import (
 	"bufio"
 	"bytes"
 	"math"
+	"net/url"
 	"os"
 	"strings"
 	"sync/atomic"
+
+	"golang.org/x/sys/unix"
 )
 
 // The mounts could change anytime, but probably won't all too often. So we
@@ -76,4 +79,73 @@ func Mounts() ([]string, error) {
 	atomic.StoreInt32(&lastMountCount, int32(len(mounts)))
 
 	return mounts, nil
+}
+
+// RemoveAllIfExists tries to remove the given path. The path can either be a
+// directory or a file. This function catches certain errors, so you don't have
+// to.
+func RemoveAllIfExists(path string) error {
+RETRY:
+	if err := os.RemoveAll(path); err != nil {
+		pathErr, ok := err.(*os.PathError)
+		if ok {
+			switch pathErr.Err {
+			case unix.EINTR:
+				// A non-error basically which tells you to try again.
+				// Use goto in order to prevent growing stack.
+				goto RETRY
+			case unix.ENOENT:
+				// Does not exist.
+				return nil
+			case unix.ENOTDIR:
+				// Not a directory or file. This happens on WSL when
+				// attempting to delete in /mnt/wslg/versions.txt, which is
+				// weird considering that os.Remove (used internally) can
+				// delete files.
+				return nil
+			case unix.EROFS:
+				// Occurs if the filesystem is read-only.
+				return nil
+			default:
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// EscapeUrl escapes the path according to the FreeDesktop Trash specification.
+// Which basically just refers to "RFC 2396, section 2".
+func EscapeUrl(path string) string {
+	u := &url.URL{Path: path}
+	return u.EscapedPath()
+}
+
+// FileExists omits the parts to make this usable cross-platform and
+// therefore saves a minimal amount of CPU cycles and some allocations.
+func FileExists(path string) (bool, error) {
+	var (
+		stat unix.Stat_t
+		err  error
+	)
+
+RETRY:
+	for {
+		err = unix.Stat(path, &stat)
+		switch err {
+		case nil:
+			// No issue, exists
+			return true, nil
+		case unix.EINTR:
+			// A non-error basically which tells you to try again.
+			continue RETRY
+		case unix.ENOENT:
+			// Doesn't exist
+			return false, nil
+		default:
+			// Unexpected error
+			return false, err
+		}
+	}
 }
