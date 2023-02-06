@@ -53,34 +53,35 @@ func getCache() (*cache, error) {
 
 		cachedInformation.path = homeTrashDir
 
-		homeTopdir, err := topdir(cachedInformation.path)
+		mounts, err := internal.Mounts()
 		if err != nil {
 			cachedInformation.err = err
 		} else {
-			cachedInformation.err = nil
-			cachedInformation.topdir = homeTopdir
+			homeTopdir, err := topdir(mounts, cachedInformation.path)
+			if err != nil {
+				cachedInformation.err = err
+			} else {
+				cachedInformation.err = nil
+				cachedInformation.topdir = homeTopdir
+			}
 		}
+
 	})
 
 	return cachedInformation, cachedInformation.err
 }
 
-func topdir(path string) (string, error) {
-	mounts, err := internal.Mounts()
-	if err != nil {
-		return "", err
-	}
-
-	var matchingMount string
-	for _, mount := range mounts {
+func topdir(potentialTopdirs []string, path string) (string, error) {
+	var matchingDir string
+	for _, dir := range potentialTopdirs {
 		// Technically mounts can be nested, so we can have more than one
 		// match, but want the deepest possible match.
-		if strings.HasPrefix(path, mount) && len(mount) > len(matchingMount) {
-			matchingMount = mount
+		if strings.HasPrefix(path, dir) && len(dir) > len(matchingDir) {
+			matchingDir = dir
 		}
 	}
 
-	return matchingMount, nil
+	return matchingDir, nil
 }
 
 func Trash(paths ...string) error {
@@ -93,6 +94,11 @@ func Trash(paths ...string) error {
 		return fmt.Errorf("error determining user trash directory: %w", err)
 	}
 
+	mounts, err := internal.Mounts()
+	if err != nil {
+		return err
+	}
+
 	for _, absPath := range paths {
 		var err error
 		absPath, err = filepath.Abs(absPath)
@@ -100,7 +106,7 @@ func Trash(paths ...string) error {
 			return err
 		}
 
-		pathTopdir, err := topdir(absPath)
+		pathTopdir, err := topdir(mounts, absPath)
 		if err != nil {
 			return err
 		}
