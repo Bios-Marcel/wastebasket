@@ -107,10 +107,9 @@ RETRY:
 			case unix.EROFS:
 				// Occurs if the filesystem is read-only.
 				return nil
-			default:
-				return err
 			}
 		}
+		return err
 	}
 
 	return nil
