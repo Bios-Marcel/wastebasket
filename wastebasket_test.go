@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/Bios-Marcel/wastebasket/internal"
 )
 
 func generateManyFileNames(count int) []string {
@@ -142,10 +144,19 @@ func Test_Trash(t *testing.T) {
 }
 
 // TestEmpty tests emptying the systems trashbin
-func TestEmpty(t *testing.T) {
+func Test_Empty(t *testing.T) {
 	error := Empty()
 	if error != nil {
 		t.Errorf("Error emptying trashbin. (%s)", error.Error())
+		mounts, err := internal.Mounts()
+		if err != nil {
+			t.Log("Error retrieving mounts for additional information:", err)
+		} else {
+			t.Log("Mounts we attempt deleting on:")
+			for _, mount := range mounts {
+				t.Log("\t" + mount)
+			}
+		}
 	}
 
 	//Can I find a way to see if this actually worked?
