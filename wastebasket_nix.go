@@ -286,10 +286,10 @@ func Empty() error {
 	uid := currentUser.Uid
 
 	for _, mount := range mounts {
-		if err := internal.RemoveAllIfExists(filepath.Join(mount, ".Trash", uid)); err != nil {
+		if err := internal.RemoveAllIfExists(filepath.Join(mount, ".Trash", uid)); err != nil && !os.IsPermission(err) {
 			return err
 		}
-		if err := internal.RemoveAllIfExists(filepath.Join(mount, fmt.Sprintf(".Trash-%s", uid))); err != nil {
+		if err := internal.RemoveAllIfExists(filepath.Join(mount, fmt.Sprintf(".Trash-%s", uid))); err != nil && !os.IsPermission(err) {
 			return err
 		}
 	}
