@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/Bios-Marcel/wastebasket/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/Bios-Marcel/wastebasket/actions/workflows/test.yml)
 
-Wastebasket is a go library allowing you to move files into your trashbin.
+Wastebasket is a go library / CLI tool allowing you to interact with your system trashbin.
 
 ## Dependencies
 
-## Golang
+### Golang
 
 The library supports at least the 3 latest major Golang versions. Depending on
 your OS it might still work on an older version, but there are no guarantees.
@@ -41,7 +41,7 @@ provided by Mac OS, resulting in most likely much better performance.
 
 **No CGO required (Might change in the future)**
 
-## How do i use it
+## Library usage
 
 Grab it via
 
@@ -70,12 +70,37 @@ func main() {
 }
 ```
 
+## CLI usage
+
+Wastebasket can also be used as a commandline interface. You can build
+executables for each subcommand (such as `empty`) separately, or build
+`wastebasket` as a whole.
+
+In order to do so, run
+
+```shell
+go build ./cmd/CMD
+```
+
+where `CMD` is whichever command you want to build.
+
+### Autocompletion
+
+The CLI offers autocompletion for flags and pre-defined arguments.
+
+Bash; Write the following into your bash profile:
+
+```bash
+source <(wastebasket completion bash)
+```
+
+Additionally, completion is supported for zsh, powershell and fish.
+For information, see [Cobra shell completions](https://github.com/spf13/cobra/blob/main/shell_completions.md)
+
 ## Benchmarks
 
 Run benchmarks using:
 
 ```go
-go test -tags=nix_wrapper_impl -bench=.
+go test -bench=.
 ```
-
-//FIXME Maybe supply bench tag for clarity?
