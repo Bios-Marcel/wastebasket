@@ -185,6 +185,7 @@ func writeTestData(t *testing.T, paths ...string) func() {
 	}
 
 	return func() {
+		t.Log("Cleaning up test files")
 		for _, path := range paths {
 			os.RemoveAll(path)
 		}
@@ -192,7 +193,7 @@ func writeTestData(t *testing.T, paths ...string) func() {
 		for _, path := range paths {
 			_, err := os.Stat(path)
 			if os.IsNotExist(err) {
-				return
+				continue
 			}
 
 			if err == nil {
@@ -201,5 +202,6 @@ func writeTestData(t *testing.T, paths ...string) func() {
 				t.Errorf("unexpected error cleaning up: %s", err)
 			}
 		}
+		t.Log("Done cleaning up test files")
 	}
 }
