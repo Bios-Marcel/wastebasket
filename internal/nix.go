@@ -1,4 +1,4 @@
-//go:build !windowss && !darwin
+//go:build !windows && !darwin
 
 package internal
 
