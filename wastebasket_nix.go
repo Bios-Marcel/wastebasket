@@ -175,8 +175,17 @@ func Trash(paths ...string) error {
 			trashDir = cache.path
 			filesDir = filepath.Join(trashDir, "files")
 			infoDir = filepath.Join(trashDir, "info")
-			// Home trash only supports absolute paths.
-			pathForTrashInfo = absPath
+
+			// Hometrash supports both relative and absolute paths.
+			if trashParent := filepath.Dir(trashDir); strings.HasPrefix(absPath, trashParent) {
+				relPath, err := filepath.Rel(trashParent, absPath)
+				if err != nil {
+					return err
+				}
+				pathForTrashInfo = relPath
+			} else {
+				pathForTrashInfo = absPath
+			}
 		}
 
 		if err := os.MkdirAll(filesDir, 0700); err != nil && !os.IsExist(err) {
