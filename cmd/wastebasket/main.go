@@ -16,6 +16,8 @@ func main() {
 	}
 	rootCmd.AddCommand(impl.TrashCmd)
 	rootCmd.AddCommand(impl.EmptyCmd)
+	rootCmd.AddCommand(impl.QueryCmd)
+	rootCmd.AddCommand(impl.RestoreCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

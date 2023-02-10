@@ -3,6 +3,7 @@
 package wastebasket
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -13,7 +14,10 @@ import (
 	"time"
 
 	"github.com/Bios-Marcel/wastebasket/internal"
+	"github.com/Bios-Marcel/wastebasket/wastebasket_nix"
 )
+
+const RFC3339 string = "2006-01-02T15:04:05"
 
 var (
 	// cachedInformation makes sure we don't constantly check for the
@@ -27,8 +31,10 @@ type cache struct {
 	// path is the path to the trash dir, for example
 	//   /home/marcel/.local/share/Trash.
 	path string
-	// topdir is the closes mountpoint of `path`.
+	// topdir is the closest mountpoint of `path`.
 	topdir string
+	// dataHome FIXME explain
+	dataHome string
 
 	init *sync.Once
 	err  error
@@ -36,7 +42,6 @@ type cache struct {
 
 func getCache() (*cache, error) {
 	cachedInformation.init.Do(func() {
-		var homeTrashDir string
 		// On some big distros, such as Ubuntu for example, this variable isn't
 		// set. Instead, we will fallback to what Ubuntu does for now.
 		if dataHome := os.Getenv("XDG_DATA_HOME"); dataHome == "" {
@@ -46,12 +51,12 @@ func getCache() (*cache, error) {
 				return
 			}
 
-			homeTrashDir = filepath.Join(homeDir, ".local", "share", "Trash")
+			cachedInformation.dataHome = filepath.Join(homeDir, ".local", "share")
 		} else {
-			homeTrashDir = filepath.Join(dataHome, "Trash")
+			cachedInformation.dataHome = dataHome
 		}
 
-		cachedInformation.path = homeTrashDir
+		cachedInformation.path = filepath.Join(cachedInformation.dataHome, "Trash")
 
 		mounts, err := internal.Mounts()
 		if err != nil {
@@ -88,7 +93,7 @@ func Trash(paths ...string) error {
 	// RFC3339 defined in the time package contains the timezone offset, which
 	// isn't defined by the spec and causes issues in some trash tools, such
 	// as trash-cli.
-	deletionDate := time.Now().Format("2006-01-02T15:04:05")
+	deletionDate := time.Now().Format(RFC3339)
 	cache, err := getCache()
 	if err != nil {
 		return fmt.Errorf("error determining user trash directory: %w", err)
@@ -307,6 +312,146 @@ func Empty() error {
 		if err := internal.RemoveAllIfExists(filepath.Join(mount, fmt.Sprintf(".Trash-%s", uid))); err != nil && !os.IsPermission(err) {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func Query(paths ...string) (map[string][]TrashedFileInfo, error) {
+	cached, err := getCache()
+	if err != nil {
+		return nil, fmt.Errorf("error accessing cache: %w", err)
+	}
+
+	absPaths := make([]string, len(paths))
+	relPaths := make([]string, len(paths))
+	trashParent := filepath.Dir(cached.path)
+	for index, path := range paths {
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return nil, err
+		}
+
+		absPaths[index] = absPath
+
+		relPaths[index], err = filepath.Rel(trashParent, absPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	result := make(map[string][]TrashedFileInfo, len(paths))
+	if err := queryTrashDir(result, relPaths, absPaths, paths, cached.dataHome, cached.path); err != nil {
+		return nil, nil
+	}
+
+	mounts, err := internal.Mounts()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving mounts: %w", err)
+	}
+
+	u, err := user.Current()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving user data: %w", err)
+	}
+
+	for _, mount := range mounts {
+		// Previously generated relative paths are for the home
+		// trash, therefore we need to regenerate them for the topdir
+		// trash, but reuse the slice for less shitty performance.
+		for index := 0; index < len(paths); index++ {
+			relPaths[index], err = filepath.Rel(mount, absPaths[index])
+			if err != nil {
+				return nil, err
+			}
+		}
+		if err := queryTrashDir(result, relPaths, absPaths, paths, mount, filepath.Join(mount, ".Trash", u.Uid)); err != nil {
+			return nil, nil
+		}
+
+		if err := queryTrashDir(result, relPaths, absPaths, paths, mount, filepath.Join(mount, fmt.Sprintf(".Trash-%s", u.Uid))); err != nil {
+			return nil, nil
+		}
+	}
+
+	return result, nil
+}
+
+func queryTrashDir(targetMap map[string][]TrashedFileInfo, homeRelPaths, absPaths, paths []string, baseDir, trashDir string) error {
+	infoDirectoryPath := filepath.Join(trashDir, "info")
+	err := filepath.WalkDir(infoDirectoryPath, func(infoPath string, dirEntry fs.DirEntry, err error) error {
+		if infoDirectoryPath == infoPath {
+			// No home trash means no files
+			if os.IsNotExist(err) || errors.Is(err, fs.ErrNotExist) {
+				return fs.ErrNotExist
+			}
+
+			return nil
+		}
+
+		// Info dir shouldn't contain any dir, therefore we ignore this,
+		// as it should also not cause any further issues.
+		if dirEntry.IsDir() {
+			return nil
+		}
+
+		bytes, err := os.ReadFile(infoPath)
+		if err != nil {
+			return err
+		}
+
+		// FIXME Is Fscanf more efficient?
+		// FIXME Are there generally more efficient stdlib ways to do this or should I manually parse?
+		var originalPath, deletionDateStr string
+		_, err = fmt.Sscanf(string(bytes), "[Trash Info]\nPath=%s\nDeletionDate=%s\n", &originalPath, &deletionDateStr)
+		if err != nil {
+			return err
+		}
+
+		deletionDate, err := time.Parse(RFC3339, deletionDateStr)
+		if err != nil {
+			return err
+		}
+
+		// If we saved a relative path, we need to join it together first, as
+		// our workdirectory might not match the directory the file resided in.
+		if !strings.HasPrefix(originalPath, "/") {
+			originalPath = filepath.Join(baseDir, originalPath)
+		}
+
+		// Hometrash supports both absolute paths and relative paths.
+		for i := 0; i < len(paths); i++ {
+			if originalPath == homeRelPaths[i] || originalPath == absPaths[i] {
+				trashedFile := filepath.Join(trashDir, "files", strings.TrimSuffix(filepath.Base(infoPath), ".trashinfo"))
+				trashInfo := wastebasket_nix.NewTrashedFileInfo(originalPath, deletionDate, infoPath, trashedFile, func() error {
+					return restore(infoPath, trashedFile, originalPath)
+				})
+				targetMap[paths[i]] = append(targetMap[paths[i]], trashInfo)
+			}
+		}
+
+		return nil
+	})
+
+	// If there is no hometrash, that is fine.
+	if err == nil || errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+
+	return err
+}
+
+// It's probably preferable not to have a public Restore(...) function, as you
+// mostly will have to query first in order to delete anyways. Even then, a
+// restore with multiple files versions to restore would complicate the API.
+func restore(infoPath, trahedFilePath, originalPath string) error {
+	if err := os.Rename(trahedFilePath, originalPath); err != nil {
+		// FIXME Use root error type that is public API
+		return fmt.Errorf("error restoring file '%s' to '%s'; .trashinfo path: '%s'", trahedFilePath, originalPath, infoPath)
+	}
+
+	if err := os.Remove(infoPath); err != nil {
+		return fmt.Errorf("error removing .trashinfo at '%s'; the file has been successfully restored though: %w", infoPath, err)
 	}
 
 	return nil
