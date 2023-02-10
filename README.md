@@ -2,6 +2,10 @@
 
 [![CI](https://github.com/Bios-Marcel/wastebasket/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/Bios-Marcel/wastebasket/actions/workflows/test.yml) [![codecoverage](https://codecov.io/gh/Bios-Marcel/wastebasket/branch/master/graph/badge.svg?token=yy8qX4BQbT)](https://codecov.io/gh/Bios-Marcel/wastebasket)
 
+<p align="center">
+  <img src="docs/logo.png" width=512 height=512/>
+</p>
+
 Wastebasket is a go library / CLI tool allowing you to interact with your system trashbin.
 
 ## Dependencies
