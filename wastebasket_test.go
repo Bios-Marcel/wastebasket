@@ -128,7 +128,8 @@ func Test_Trash(t *testing.T) {
 
 			for _, expectation := range testCase.trashExpectations {
 				err := expectation.trasher()
-				if errors.Is(err, expectation.expectedErr) {
+				// Also catches nil
+				if err != expectation.expectedErr && errors.Is(err, expectation.expectedErr) {
 					t.Errorf("unexpected error: %v != %v", err, expectation.expectedErr)
 				}
 			}

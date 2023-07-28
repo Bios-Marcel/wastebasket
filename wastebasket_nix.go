@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/Bios-Marcel/wastebasket/v2/internal"
@@ -281,6 +282,21 @@ func Trash(paths ...string) error {
 	return nil
 }
 
+func isPermissionDenied(err error) bool {
+	if err == os.ErrPermission {
+		return true
+	}
+
+	if pe, ok := err.(*os.PathError); ok {
+		if errno, ok := pe.Err.(syscall.Errno); ok {
+			// EACCES (permission denied) and EPERM (operation not permitted) are checked
+			return errno == syscall.EACCES || errno == syscall.EPERM
+		}
+	}
+
+	return false
+}
+
 func Empty() error {
 	cache, err := getCache()
 	if err != nil {
@@ -303,12 +319,12 @@ func Empty() error {
 
 	for _, mount := range mounts {
 		path := filepath.Join(mount, ".Trash", currentUser.Uid)
-		if err := internal.RemoveAllIfExists(path); err != nil && !os.IsPermission(err) {
+		if err := internal.RemoveAllIfExists(path); err != nil && !isPermissionDenied(err) {
 			return fmt.Errorf("error clearing mount trash '%s': %w", path, err)
 		}
 
 		path = filepath.Join(mount, fmt.Sprintf(".Trash-%s", currentUser.Uid))
-		if err := internal.RemoveAllIfExists(path); err != nil && !os.IsPermission(err) {
+		if err := internal.RemoveAllIfExists(path); err != nil && !isPermissionDenied(err) {
 			return fmt.Errorf("error clearing mount trash '%s': %w", path, err)
 		}
 	}
