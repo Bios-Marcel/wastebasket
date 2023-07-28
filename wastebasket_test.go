@@ -3,8 +3,11 @@ package wastebasket
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func generateManyFileNames(count int) []string {
@@ -149,6 +152,32 @@ func Test_Empty(t *testing.T) {
 	}
 
 	//Can I find a way to see if this actually worked?
+}
+
+func Test_Query_Restore_Homedir(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	path := filepath.Join(home, "path.txt")
+	defer writeTestData(t, path)()
+	assertExists(t, path)
+
+	if err := Trash(path); err != nil {
+		t.Errorf("Error trashing file. (%s)", err.Error())
+	}
+	assertNotExists(t, path)
+
+	result, err := Query(path)
+	if assert.NoError(t, err) {
+		if assert.Len(t, result[path], 1) {
+			if assert.NoError(t, result[path][0].Restore()) {
+				assertExists(t, path)
+			}
+		}
+	}
 }
 
 func assertExists(t *testing.T, path string) {

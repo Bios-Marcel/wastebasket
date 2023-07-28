@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Bios-Marcel/wastebasket/internal"
-	"github.com/Bios-Marcel/wastebasket/wastebasket_nix"
+	"github.com/Bios-Marcel/wastebasket/v2/internal"
+	"github.com/Bios-Marcel/wastebasket/v2/wastebasket_nix"
 )
 
 const RFC3339 string = "2006-01-02T15:04:05"

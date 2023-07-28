@@ -1,12 +1,29 @@
 # Wastebasket
 
-[![CI](https://github.com/Bios-Marcel/wastebasket/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/Bios-Marcel/wastebasket/actions/workflows/test.yml) [![codecoverage](https://codecov.io/gh/Bios-Marcel/wastebasket/branch/master/graph/badge.svg?token=yy8qX4BQbT)](https://codecov.io/gh/Bios-Marcel/wastebasket)
+[![Go Reference](https://pkg.go.dev/badge/github.com/Bios-Marcel/wastebasket.svg)](https://pkg.go.dev/github.com/Bios-Marcel/wastebasket)
+[![CI](https://github.com/Bios-Marcel/wastebasket/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/Bios-Marcel/wastebasket/actions/workflows/test.yml)
+[![codecoverage](https://codecov.io/gh/Bios-Marcel/wastebasket/branch/master/graph/badge.svg?token=yy8qX4BQbT)](https://codecov.io/gh/Bios-Marcel/wastebasket)
 
 <p align="center">
   <img src="docs/logo.png" width=512 height=512/>
 </p>
 
-Wastebasket is a go library / CLI tool allowing you to interact with your system trashbin.
+Wastebasket is a go library / CLI tool allowing you to interact with your
+system trashbin. It supports nix-systems (such as Linux and BSD) and Windows.
+
+## v2
+
+Note that `github.com/Bios-Marcel/wastebasket/v2` drops support for MacOS. I
+simply can't be bothered maintaining it, as the performance is horrible and
+adding features is hard to test. Additionally, a "proper" implementation
+requires a very complex solution, embedding an objective C runtime.
+
+If you need basic MacOS support, use `github.com/Bios-Marcel/wastebasket`.
+This will limit you to trashing files and emptying the trashbin.
+
+## Documentation
+
+Further documentation can be found at [/docs](/docs).
 
 ## Dependencies
 
@@ -36,21 +53,12 @@ I'd be open to this though.
 
 **No CGO required**
 
-### Mac OS
-
-The only dependency is `Finder`, which is installed by default.
-
-There are plans for a better implementation, that uses the Objective-C API
-provided by Mac OS, resulting in most likely much better performance.
-
-**No CGO required (Might change in the future)**
-
 ## Library usage
 
 Grab it via
 
 ```bash
-go get github.com/Bios-Marcel/wastebasket
+go get github.com/Bios-Marcel/wastebasket/v2
 ```
 
 and you are ready to go.
@@ -64,7 +72,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/Bios-Marcel/wastebasket"
+    "github.com/Bios-Marcel/wastebasket/v2"
 )
 
 func main() {

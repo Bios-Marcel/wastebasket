@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"github.com/Bios-Marcel/wastebasket"
+	"github.com/Bios-Marcel/wastebasket/v2"
 	"github.com/spf13/cobra"
 )
 

@@ -6,7 +6,7 @@ jobs:
   test:
     strategy:
       matrix:
-        platform: [windows-latest, ubuntu-latest, macos-latest]
+        platform: [windows-latest, ubuntu-latest]
         go: ['1.18.x', '1.19.x', '1.20.x']
 
     runs-on: ${{ matrix.platform }}

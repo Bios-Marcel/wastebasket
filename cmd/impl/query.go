@@ -3,7 +3,7 @@ package impl
 import (
 	"fmt"
 
-	"github.com/Bios-Marcel/wastebasket"
+	"github.com/Bios-Marcel/wastebasket/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +22,10 @@ var QueryCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 		} else {
 			for key, value := range result {
-				fmt.Println(key, len(value))
+				fmt.Println(key)
+				for _, value := range value {
+					fmt.Println(value.OriginalPath(), value.DeletionDate())
+				}
 			}
 		}
 	},

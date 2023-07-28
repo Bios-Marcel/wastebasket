@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/Bios-Marcel/wastebasket/cmd/impl"
+	"github.com/Bios-Marcel/wastebasket/v2/cmd/impl"
 	"github.com/spf13/cobra"
 )
 
