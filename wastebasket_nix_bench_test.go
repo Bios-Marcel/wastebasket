@@ -104,7 +104,7 @@ func gioTrash(paths ...string) error {
 
 func trashCli(paths ...string) error {
 	if isCommandAvailable("trash") {
-		//trash-cli throws 74 in case the file doesn't exist
+		// trash-cli throws 74 in case the file doesn't exist
 		existingFiles := make([]string, 0, len(paths))
 		for _, path := range paths {
 			if _, err := os.Stat(path); os.IsNotExist(err) {

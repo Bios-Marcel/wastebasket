@@ -13,7 +13,8 @@ type TrashedFileInfo struct {
 func NewTrashedFileInfo(
 	originalPath string, deletionDate time.Time,
 	infoPath, currentPath string,
-	restore func() error) *TrashedFileInfo {
+	restore func() error,
+) *TrashedFileInfo {
 	return &TrashedFileInfo{
 		originalPath: originalPath,
 		deletionDate: deletionDate,

@@ -12,13 +12,10 @@ type TrashedFileInfo struct {
 func NewTrashedFileInfo(
 	fileSize uint64,
 	originalPath string, deletionDate time.Time,
-	// FIXME
-	writeProtected bool,
-	// FIXME
-	infoPath string,
-	restore func() error) *TrashedFileInfo {
+	restore func() error,
+) *TrashedFileInfo {
 	return &TrashedFileInfo{
-		fileSize:     uint64(fileSize),
+		fileSize:     fileSize,
 		originalPath: originalPath,
 		deletionDate: deletionDate,
 		restore:      restore,

@@ -19,13 +19,11 @@ import (
 
 const RFC3339 string = "2006-01-02T15:04:05"
 
-var (
-	// cachedInformation makes sure we don't constantly check for the
-	// directory and which drive it is on again.
-	cachedInformation = &cache{
-		init: &sync.Once{},
-	}
-)
+// cachedInformation makes sure we don't constantly check for the
+// directory and which drive it is on again.
+var cachedInformation = &cache{
+	init: &sync.Once{},
+}
 
 type cache struct {
 	// path is the path to the trash dir, for example
@@ -70,7 +68,6 @@ func getCache() (*cache, error) {
 				cachedInformation.topdir = homeTopdir
 			}
 		}
-
 	})
 
 	return cachedInformation, cachedInformation.err
@@ -193,10 +190,10 @@ func Trash(paths ...string) error {
 			}
 		}
 
-		if err := os.MkdirAll(filesDir, 0700); err != nil && !os.IsExist(err) {
+		if err := os.MkdirAll(filesDir, 0o700); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("error creating directory '%s': %w", filesDir, err)
 		}
-		if err := os.MkdirAll(infoDir, 0700); err != nil && !os.IsExist(err) {
+		if err := os.MkdirAll(infoDir, 0o700); err != nil && !os.IsExist(err) {
 			return fmt.Errorf("error creating directory '%s': %w", infoDir, err)
 		}
 
@@ -218,7 +215,7 @@ func Trash(paths ...string) error {
 			// We save ourselves the FileExists check, as we can combine it
 			// with the opening of the file handle. This is a performance
 			// optimisation.
-			infoFileHandle, err = os.OpenFile(trashedFileInfoPath, os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0600)
+			infoFileHandle, err = os.OpenFile(trashedFileInfoPath, os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0o600)
 			if err != nil {
 				if !os.IsExist(err) {
 					return fmt.Errorf("error creating info file: %w", err)
@@ -244,7 +241,7 @@ func Trash(paths ...string) error {
 				if exists, err := internal.FileExists(trashedFilePath); err != nil || exists {
 					continue
 				}
-				infoFileHandle, err = os.OpenFile(filepath.Join(infoDir, newBaseName+".trashinfo"), os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0600)
+				infoFileHandle, err = os.OpenFile(filepath.Join(infoDir, newBaseName+".trashinfo"), os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0o600)
 				if err != nil {
 					if os.IsExist(err) {
 						continue

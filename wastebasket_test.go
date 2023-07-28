@@ -1,13 +1,22 @@
-package wastebasket
+package wastebasket_test
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/Bios-Marcel/wastebasket/v2"
+	"github.com/Bios-Marcel/wastebasket/v2/wastebasket_nix"
+	"github.com/Bios-Marcel/wastebasket/v2/wastebasket_windows"
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	_ wastebasket.TrashedFileInfo = &wastebasket_nix.TrashedFileInfo{}
+	_ wastebasket.TrashedFileInfo = &wastebasket_windows.TrashedFileInfo{}
 )
 
 func generateManyFileNames(count int) []string {
@@ -113,21 +122,21 @@ func Test_Trash(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			defer writeTestData(t, c.testDataToCreate...)()
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			defer writeTestData(t, testCase.testDataToCreate...)()
 
-			for _, expectation := range c.trashExpectations {
+			for _, expectation := range testCase.trashExpectations {
 				err := expectation.trasher()
-				if err != expectation.expectedErr {
+				if errors.Is(err, expectation.expectedErr) {
 					t.Errorf("unexpected error: %v != %v", err, expectation.expectedErr)
 				}
 			}
 
 		OUTER_LOOP:
-			for _, file := range c.testDataToCreate {
+			for _, file := range testCase.testDataToCreate {
 				_, err := os.Stat(file)
-				for _, expectedFile := range c.expectedFiles {
+				for _, expectedFile := range testCase.expectedFiles {
 					if file == expectedFile {
 						if os.IsNotExist(err) {
 							t.Errorf("File %s doesn't exist, but was expected to", file)
@@ -144,14 +153,12 @@ func Test_Trash(t *testing.T) {
 	}
 }
 
-// TestEmpty tests emptying the systems trashbin
 func Test_Empty(t *testing.T) {
-	error := Empty()
-	if error != nil {
-		t.Errorf("Error emptying trashbin. (%s)", error.Error())
+	if err := wastebasket.Empty(); err != nil {
+		t.Errorf("Error emptying trashbin. (%s)", err.Error())
 	}
 
-	//Can I find a way to see if this actually worked?
+	// Can I find a way to see if this actually worked?
 }
 
 func Test_Query_Restore_Homedir(t *testing.T) {
@@ -165,12 +172,12 @@ func Test_Query_Restore_Homedir(t *testing.T) {
 	defer writeTestData(t, path)()
 	assertExists(t, path)
 
-	if err := Trash(path); err != nil {
+	if err := wastebasket.Trash(path); err != nil {
 		t.Errorf("Error trashing file. (%s)", err.Error())
 	}
 	assertNotExists(t, path)
 
-	result, err := Query(path)
+	result, err := wastebasket.Query(path)
 	if assert.NoError(t, err) {
 		if assert.Len(t, result[path], 1) {
 			if assert.NoError(t, result[path][0].Restore()) {
@@ -181,26 +188,30 @@ func Test_Query_Restore_Homedir(t *testing.T) {
 }
 
 func assertExists(t *testing.T, path string) {
-	_, err := os.Stat(path)
-	if err != nil {
+	t.Helper()
+
+	if _, err := os.Stat(path); err != nil {
 		t.Errorf("path '%s' doesn't exist", path)
 	}
 }
 
 func assertNotExists(t *testing.T, path string) {
-	_, err := os.Stat(path)
-	if !os.IsNotExist(err) {
+	t.Helper()
+
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Errorf("path '%s' exists, but shouldn't", path)
 	}
 }
 
 func trash(paths ...string) func() error {
 	return func() error {
-		return Trash(paths...)
+		return wastebasket.Trash(paths...)
 	}
 }
 
 func writeTestData(t *testing.T, paths ...string) func() {
+	t.Helper()
+
 	for _, path := range paths {
 		var err error
 		if strings.HasSuffix(path, "/") {

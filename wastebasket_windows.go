@@ -148,7 +148,7 @@ func Empty() error {
 	return nil
 }
 
-// The info files have the following strucutre:
+// The info files have the following structure:
 // 8 Byte header
 // 8 Byte for file size
 // 8 Byte for deletion date
@@ -206,7 +206,6 @@ func Query(paths ...string) (map[string][]TrashedFileInfo, error) {
 					// Windows seems to keep the metadata files on restoration
 					// Until I've figured out why, i'll ignore these files.
 					if _, err := os.Stat(trashedFile); os.IsNotExist(err) {
-						fmt.Println("File not found", trashedFile)
 						continue INFO_LOOP
 					}
 
@@ -230,8 +229,8 @@ func Query(paths ...string) (map[string][]TrashedFileInfo, error) {
 						HighDateTime: binary.LittleEndian.Uint32(bytes[byteOffset+20 : byteOffset+24]),
 					}
 
-					recover := createRecover(infoFile, trashedFile, originalFilepath)
-					info := wastebasket_windows.NewTrashedFileInfo(fileSize, originalFilepath, time.Unix(0, deletionTime.Nanoseconds()), false, infoFile, recover)
+					recoverFunc := createRecover(infoFile, trashedFile, originalFilepath)
+					info := wastebasket_windows.NewTrashedFileInfo(fileSize, originalFilepath, time.Unix(0, deletionTime.Nanoseconds()), recoverFunc)
 					result[path[1]] = append(result[path[1]], info)
 					continue INFO_LOOP
 				}
