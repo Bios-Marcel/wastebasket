@@ -101,19 +101,19 @@ func Trash(paths ...string) error {
 
 	mounts, err := internal.Mounts()
 	if err != nil {
-		return err
+		return fmt.Errorf("error retrieving mounts: %w", err)
 	}
 
 	for _, absPath := range paths {
 		var err error
 		absPath, err = filepath.Abs(absPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("error retrieving absolute filepath: %w", err)
 		}
 
 		pathTopdir, err := topdir(mounts, absPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("error determining topdir: %w", err)
 		}
 
 		// We only support absolute filenames in the home trash. For
@@ -130,7 +130,7 @@ func Trash(paths ...string) error {
 			if pathTopdir != "" {
 				var uid string
 				if currentUser, err := user.Current(); err != nil {
-					return err
+					return fmt.Errorf("error getting current user: %w", err)
 				} else {
 					uid = currentUser.Uid
 				}
@@ -140,7 +140,7 @@ func Trash(paths ...string) error {
 				var useFallbackTopdirTrash bool
 				if trashDirStat, err := os.Stat(trashDir); err != nil {
 					if !os.IsNotExist(err) {
-						return err
+						return fmt.Errorf("error checking for trash directory: %w", err)
 					}
 					useFallbackTopdirTrash = true
 				} else {
@@ -157,7 +157,7 @@ func Trash(paths ...string) error {
 
 				pathForTrashInfo, err = filepath.Rel(pathTopdir, absPath)
 				if err != nil {
-					return err
+					return fmt.Errorf("error retrieving relative path: %w", err)
 				}
 
 				if !useFallbackTopdirTrash {
@@ -185,7 +185,7 @@ func Trash(paths ...string) error {
 			if trashParent := filepath.Dir(trashDir); strings.HasPrefix(absPath, trashParent) {
 				relPath, err := filepath.Rel(trashParent, absPath)
 				if err != nil {
-					return err
+					return fmt.Errorf("error retrieving relative path: %w", err)
 				}
 				pathForTrashInfo = relPath
 			} else {
@@ -221,7 +221,7 @@ func Trash(paths ...string) error {
 			infoFileHandle, err = os.OpenFile(trashedFileInfoPath, os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0600)
 			if err != nil {
 				if !os.IsExist(err) {
-					return err
+					return fmt.Errorf("error creating info file: %w", err)
 				}
 			}
 
@@ -249,7 +249,7 @@ func Trash(paths ...string) error {
 					if os.IsExist(err) {
 						continue
 					}
-					return err
+					return fmt.Errorf("error creating info file: %w", err)
 				}
 
 				defer infoFileHandle.Close()
@@ -273,11 +273,11 @@ func Trash(paths ...string) error {
 			}
 
 			// All special treatment failed, return original os.Rename error
-			return err
+			return fmt.Errorf("error moving file to trash: %w", err)
 		}
 
 		if _, err = infoFileHandle.WriteString(fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", internal.EscapeUrl(pathForTrashInfo), deletionDate)); err != nil {
-			return err
+			return fmt.Errorf("error writing to info file: %w", err)
 		}
 	}
 
@@ -287,30 +287,32 @@ func Trash(paths ...string) error {
 func Empty() error {
 	cache, err := getCache()
 	if err != nil {
-		return err
+		return fmt.Errorf("error accessing cache: %w", err)
 	}
 
 	if err := internal.RemoveAllIfExists(cache.path); err != nil {
-		return err
+		return fmt.Errorf("error clearing home trash '%s': %w", cache.path, err)
 	}
 
 	mounts, err := internal.Mounts()
 	if err != nil {
-		return err
+		return fmt.Errorf("error retrieving mounts: %w", err)
 	}
 
 	currentUser, err := user.Current()
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting current user: %w", err)
 	}
-	uid := currentUser.Uid
 
 	for _, mount := range mounts {
-		if err := internal.RemoveAllIfExists(filepath.Join(mount, ".Trash", uid)); err != nil && !os.IsPermission(err) {
-			return err
+		path := filepath.Join(mount, ".Trash", currentUser.Uid)
+		if err := internal.RemoveAllIfExists(path); err != nil && !os.IsPermission(err) {
+			return fmt.Errorf("error clearing mount trash '%s': %w", path, err)
 		}
-		if err := internal.RemoveAllIfExists(filepath.Join(mount, fmt.Sprintf(".Trash-%s", uid))); err != nil && !os.IsPermission(err) {
-			return err
+
+		path = filepath.Join(mount, fmt.Sprintf(".Trash-%s", currentUser.Uid))
+		if err := internal.RemoveAllIfExists(path); err != nil && !os.IsPermission(err) {
+			return fmt.Errorf("error clearing mount trash '%s': %w", path, err)
 		}
 	}
 
@@ -336,13 +338,13 @@ func Query(paths ...string) (map[string][]TrashedFileInfo, error) {
 
 		relPaths[index], err = filepath.Rel(trashParent, absPath)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error retrieving relative path: %w", err)
 		}
 	}
 
 	result := make(map[string][]TrashedFileInfo, len(paths))
 	if err := queryTrashDir(result, relPaths, absPaths, paths, cached.dataHome, cached.path); err != nil {
-		return nil, nil
+		return nil, fmt.Errorf("error querying home trash: %w", err)
 	}
 
 	mounts, err := internal.Mounts()
@@ -362,15 +364,15 @@ func Query(paths ...string) (map[string][]TrashedFileInfo, error) {
 		for index := 0; index < len(paths); index++ {
 			relPaths[index], err = filepath.Rel(mount, absPaths[index])
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error retrieving relative path: %w", err)
 			}
 		}
 		if err := queryTrashDir(result, relPaths, absPaths, paths, mount, filepath.Join(mount, ".Trash", u.Uid)); err != nil {
-			return nil, nil
+			return nil, fmt.Errorf("error querying mount trash: %w", err)
 		}
 
 		if err := queryTrashDir(result, relPaths, absPaths, paths, mount, filepath.Join(mount, fmt.Sprintf(".Trash-%s", u.Uid))); err != nil {
-			return nil, nil
+			return nil, fmt.Errorf("error querying mount trash: %w", err)
 		}
 	}
 
@@ -397,7 +399,7 @@ func queryTrashDir(targetMap map[string][]TrashedFileInfo, homeRelPaths, absPath
 
 		bytes, err := os.ReadFile(infoPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("error reading .trashinfo file: %w", err)
 		}
 
 		// FIXME Is Fscanf more efficient?
@@ -405,12 +407,12 @@ func queryTrashDir(targetMap map[string][]TrashedFileInfo, homeRelPaths, absPath
 		var originalPath, deletionDateStr string
 		_, err = fmt.Sscanf(string(bytes), "[Trash Info]\nPath=%s\nDeletionDate=%s\n", &originalPath, &deletionDateStr)
 		if err != nil {
-			return err
+			return fmt.Errorf("error parsing .trashinfo file: %w", err)
 		}
 
 		deletionDate, err := time.Parse(RFC3339, deletionDateStr)
 		if err != nil {
-			return err
+			return fmt.Errorf("error parsing deletion date: %w", err)
 		}
 
 		// If we saved a relative path, we need to join it together first, as

@@ -116,7 +116,7 @@ func makeDoubleNullTerminatedLpstr(items ...string) (*uint16, error) {
 	for _, s := range items {
 		converted, err := windows.UTF16FromString(s)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error converting string to utf16: %w", err)
 		}
 		chars = append(chars, converted...)
 	}

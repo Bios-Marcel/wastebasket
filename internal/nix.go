@@ -5,6 +5,7 @@ package internal
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"math"
 	"net/url"
 	"os"
@@ -23,7 +24,7 @@ var lastMountCount int32
 func Mounts() ([]string, error) {
 	handle, err := os.Open("/proc/mounts")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error opening /proc/mounts: %w", err)
 	}
 
 	defer handle.Close()
@@ -109,7 +110,7 @@ RETRY:
 				return nil
 			}
 		}
-		return err
+		return fmt.Errorf("error removing file: %w", err)
 	}
 
 	return nil
