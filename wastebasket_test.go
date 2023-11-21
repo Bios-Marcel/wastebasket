@@ -178,10 +178,10 @@ func Test_Query_Restore_Homedir(t *testing.T) {
 	}
 	assertNotExists(t, path)
 
-	result, err := wastebasket.Query(path)
+	result, err := wastebasket.Query(wastebasket.QueryOptions{Paths: []string{path}})
 	if assert.NoError(t, err) {
-		if assert.Len(t, result[path], 1) {
-			if assert.NoError(t, result[path][0].Restore()) {
+		if assert.Len(t, result.Matches[path], 1) {
+			if assert.NoError(t, result.Matches[path][0].Restore()) {
 				assertExists(t, path)
 			}
 		}

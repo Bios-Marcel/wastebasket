@@ -9,9 +9,12 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf16"
 	"unsafe"
 
 	"github.com/Bios-Marcel/wastebasket/v2/wastebasket_windows"
+	"github.com/gobwas/glob"
+
 	"golang.org/x/sys/windows"
 	"golang.org/x/text/encoding/unicode"
 )
@@ -148,6 +151,13 @@ func Empty() error {
 	return nil
 }
 
+type Report struct {
+	Data map[string][]TrashedFileInfo
+	// Failures are errors that occured, but won't prevent the entire operation
+	// from failing. FIXME How does it work with failfast.
+	Failures []error
+}
+
 // The info files have the following structure:
 // 8 Byte header
 // 8 Byte for file size
@@ -157,27 +167,62 @@ func Empty() error {
 
 // https://stackoverflow.com/questions/6693^9004/windows-recycle-bin-information-file-binary-format
 
-func Query(paths ...string) (map[string][]TrashedFileInfo, error) {
+func Query(options QueryOptions) (*QueryResult, error) {
+	if err := options.validate(); err != nil {
+		return nil, fmt.Errorf("error validating options: %w", err)
+	}
+
 	user, err := user.Current()
 	if err != nil {
 		return nil, fmt.Errorf("error querying SID of windows user: %w", err)
 	}
 
+	globs := make(map[string]glob.Glob, len(options.Globs))
+	for _, globString := range options.Globs {
+		compiled, err := glob.Compile(globString)
+		if err != nil {
+			return nil, fmt.Errorf("error compiling glob: %w", err)
+		}
+
+		globs[globString] = compiled
+	}
+	paths := options.Paths
+
 	// We map the paths per volume, assuming that each volume only contains
 	// files from that volume. Additionally, we make all paths
 	// absolute, defaulting to the volume of the current working directory.
 	volumeMapping := make(map[string][][2]string)
-	for _, path := range paths {
-		absPath, err := filepath.Abs(path)
+
+	if len(paths) > 0 {
+		for _, path := range paths {
+			absPath, err := filepath.Abs(path)
+			if err != nil {
+				return nil, fmt.Errorf("error retrieving absolute filepath: %w", err)
+			}
+
+			volumeName := filepath.VolumeName(absPath)
+			volumeMapping[volumeName] = append(volumeMapping[volumeName], [...]string{absPath, path})
+		}
+	} else {
+		// FIXME Figure out what exactly counts as a logical drive and whether
+		// we need to potentially filter out network drives and such. Do network
+		// drives even support trashing?
+		volumes, err := windows.GetLogicalDriveStrings(0, nil)
 		if err != nil {
-			return nil, fmt.Errorf("error retrieving absolute filepath: %w", err)
+			return nil, fmt.Errorf("error retrieving logical drive strings: %w", err)
 		}
 
-		volumeName := filepath.VolumeName(absPath)
-		volumeMapping[volumeName] = append(volumeMapping[volumeName], [...]string{absPath, path})
+		a := make([]uint16, volumes)
+		windows.GetLogicalDriveStrings(volumes, &a[0])
+		s := string(utf16.Decode(a))
+		for _, volume := range strings.Split(strings.TrimRight(s, "\x00"), "\x00") {
+			volumeMapping[volume] = nil
+		}
 	}
 
-	result := make(map[string][]TrashedFileInfo)
+	result := &QueryResult{
+		Matches: make(map[string][]TrashedFileInfo),
+	}
 	pathDecoder := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewDecoder()
 	for volume, paths := range volumeMapping {
 		rootTrash := fmt.Sprintf(`%s\$Recycle.Bin\%s`, volume, user.Uid)
@@ -191,47 +236,50 @@ func Query(paths ...string) (map[string][]TrashedFileInfo, error) {
 		for _, infoFile := range infoFiles {
 			bytes, err := os.ReadFile(infoFile)
 			if err != nil {
-				return nil, fmt.Errorf("error reading info file: %w", err)
+				err := fmt.Errorf("error reading info file: %w", err)
+				if options.FailFast {
+					return nil, err
+				}
+
+				result.Failures = append(result.Failures, err)
+				continue
+			}
+
+			trashedFile := fmt.Sprintf("%s\\$R%s", rootTrash, strings.TrimPrefix(filepath.Base(infoFile), "$I"))
+			// Windows seems to keep the metadata files on restoration
+			// Until I've figured out why, i'll ignore these files.
+			// If the error is non-nil, we will ignore it and continue. Since
+			// the stat call to this file, is not directly important.
+			if _, err := os.Stat(trashedFile); os.IsNotExist(err) {
+				continue INFO_LOOP
 			}
 
 			// -2 to ignore nullbyte in the end
-			originalFilepath, err := pathDecoder.Bytes(bytes[28 : len(bytes)-2])
-			if err != nil {
-				return nil, fmt.Errorf("error decoding path: %w", err)
+			var originalFilepath string
+			if pathBytes, err := pathDecoder.Bytes(bytes[28 : len(bytes)-2]); err != nil {
+				err := fmt.Errorf("error decoding path: %w", err)
+				if options.FailFast {
+					return nil, err
+				}
+
+				result.Failures = append(result.Failures, err)
+			} else {
+				originalFilepath = string(pathBytes)
 			}
 
+			// Since globs and paths are mutually exclusive, at best one of those
+			// loops will match and we don't need to run both.
+			for globString, globCompiled := range globs {
+				if globCompiled.Match(originalFilepath) {
+					info := createTrashedFile(infoFile, trashedFile, originalFilepath, bytes)
+					result.Matches[globString] = append(result.Matches[globString], info)
+					continue INFO_LOOP
+				}
+			}
 			for _, path := range paths {
-				trashedFile := fmt.Sprintf("%s\\$R%s", rootTrash, strings.TrimPrefix(filepath.Base(infoFile), "$I"))
-				if originalFilepath := string(originalFilepath); path[0] == originalFilepath {
-					// Windows seems to keep the metadata files on restoration
-					// Until I've figured out why, i'll ignore these files.
-					if _, err := os.Stat(trashedFile); os.IsNotExist(err) {
-						continue INFO_LOOP
-					}
-
-					// According to an SO article, the info file can contain
-					// garbage bytes in the beginning, but seemingly, they seem
-					// to be little endian notation BOM bytes. While I haven't
-					// encountered these and can't confirm that they
-					// exist, guarding against this shouldn't hurt.
-					var byteOffset int
-					for index, b := range bytes {
-						// Start of header found
-						if b == 0x02 {
-							byteOffset = index
-							break
-						}
-					}
-
-					fileSize := binary.LittleEndian.Uint64(bytes[byteOffset+8 : byteOffset+16])
-					deletionTime := syscall.Filetime{
-						LowDateTime:  binary.LittleEndian.Uint32(bytes[byteOffset+16 : byteOffset+20]),
-						HighDateTime: binary.LittleEndian.Uint32(bytes[byteOffset+20 : byteOffset+24]),
-					}
-
-					recoverFunc := createRecover(infoFile, trashedFile, originalFilepath)
-					info := wastebasket_windows.NewTrashedFileInfo(fileSize, originalFilepath, time.Unix(0, deletionTime.Nanoseconds()), recoverFunc)
-					result[path[1]] = append(result[path[1]], info)
+				if path[0] == originalFilepath {
+					info := createTrashedFile(infoFile, trashedFile, originalFilepath, bytes)
+					result.Matches[path[1]] = append(result.Matches[path[1]], info)
 					continue INFO_LOOP
 				}
 			}
@@ -239,6 +287,52 @@ func Query(paths ...string) (map[string][]TrashedFileInfo, error) {
 	}
 
 	return result, nil
+}
+
+func createTrashedFile(infoFile, trashedFile, originalFilepath string, infoData []byte) *wastebasket_windows.TrashedFileInfo {
+	// According to an SO article, the info file can contain
+	// garbage bytes in the beginning, but seemingly, they seem
+	// to be little endian notation BOM bytes. While I haven't
+	// encountered these and can't confirm that they
+	// exist, guarding against this shouldn't hurt.
+	var byteOffset int
+	for index, b := range infoData {
+		// Start of header found
+		if b == 0x02 {
+			byteOffset = index
+			break
+		}
+	}
+
+	fileSize := binary.LittleEndian.Uint64(infoData[byteOffset+8 : byteOffset+16])
+	deletionTime := syscall.Filetime{
+		LowDateTime:  binary.LittleEndian.Uint32(infoData[byteOffset+16 : byteOffset+20]),
+		HighDateTime: binary.LittleEndian.Uint32(infoData[byteOffset+20 : byteOffset+24]),
+	}
+
+	recoverFunc := createRecover(infoFile, trashedFile, originalFilepath)
+	deleteFunc := createDelete(infoFile, trashedFile)
+	return wastebasket_windows.NewTrashedFileInfo(
+		fileSize,
+		originalFilepath,
+		time.Unix(0, deletionTime.Nanoseconds()),
+		recoverFunc,
+		deleteFunc,
+	)
+}
+
+func createDelete(infoFile, trashedFile string) func() error {
+	return func() error {
+		if err := os.Remove(infoFile); err != nil {
+			return fmt.Errorf("error removing info file: %w", err)
+		}
+
+		if err := os.Remove(trashedFile); err != nil {
+			return fmt.Errorf("error removing trashed file: %w", err)
+		}
+
+		return nil
+	}
 }
 
 func createRecover(infoFile, trashedFile, originalFile string) func() error {

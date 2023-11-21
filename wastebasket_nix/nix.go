@@ -7,20 +7,23 @@ type TrashedFileInfo struct {
 	deletionDate time.Time
 
 	infoPath, currentPath string
-	restore               func() error
+	restoreFunc           func() error
+	deleteFunc            func() error
 }
 
 func NewTrashedFileInfo(
 	originalPath string, deletionDate time.Time,
 	infoPath, currentPath string,
-	restore func() error,
+	restoreFunc func() error,
+	deleteFunc func() error,
 ) *TrashedFileInfo {
 	return &TrashedFileInfo{
 		originalPath: originalPath,
 		deletionDate: deletionDate,
 		infoPath:     infoPath,
 		currentPath:  currentPath,
-		restore:      restore,
+		restoreFunc:  restoreFunc,
+		deleteFunc:   deleteFunc,
 	}
 }
 
@@ -48,5 +51,9 @@ func (t TrashedFileInfo) DeletionDate() time.Time {
 
 // Restore will attempt restoring the file to its previous location.
 func (t TrashedFileInfo) Restore() error {
-	return t.restore()
+	return t.restoreFunc()
+}
+
+func (t TrashedFileInfo) Delete() error {
+	return t.deleteFunc()
 }

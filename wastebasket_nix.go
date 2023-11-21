@@ -16,6 +16,7 @@ import (
 
 	"github.com/Bios-Marcel/wastebasket/v2/internal"
 	"github.com/Bios-Marcel/wastebasket/v2/wastebasket_nix"
+	"github.com/gobwas/glob"
 )
 
 const RFC3339 string = "2006-01-02T15:04:05"
@@ -332,10 +333,25 @@ func Empty() error {
 	return nil
 }
 
-func Query(paths ...string) (map[string][]TrashedFileInfo, error) {
+func Query(options QueryOptions) (*QueryResult, error) {
+	globs := make([]glob.Glob, 0, len(options.Globs))
+	for _, globString := range options.Globs {
+		compiled, err := glob.Compile(globString)
+		if err != nil {
+			return nil, fmt.Errorf("error compiling glob: %w", err)
+		}
+
+		globs = append(globs, compiled)
+	}
+	paths := options.Paths
+
 	cached, err := getCache()
 	if err != nil {
 		return nil, fmt.Errorf("error accessing cache: %w", err)
+	}
+
+	result := &QueryResult{
+		Matches: make(map[string][]TrashedFileInfo),
 	}
 
 	absPaths := make([]string, len(paths))
@@ -355,7 +371,6 @@ func Query(paths ...string) (map[string][]TrashedFileInfo, error) {
 		}
 	}
 
-	result := make(map[string][]TrashedFileInfo, len(paths))
 	if err := queryTrashDir(result, relPaths, absPaths, paths, cached.dataHome, cached.path); err != nil {
 		return nil, fmt.Errorf("error querying home trash: %w", err)
 	}
@@ -392,7 +407,7 @@ func Query(paths ...string) (map[string][]TrashedFileInfo, error) {
 	return result, nil
 }
 
-func queryTrashDir(targetMap map[string][]TrashedFileInfo, homeRelPaths, absPaths, paths []string, baseDir, trashDir string) error {
+func queryTrashDir(result *QueryResult, homeRelPaths, absPaths, paths []string, baseDir, trashDir string) error {
 	infoDirectoryPath := filepath.Join(trashDir, "info")
 	err := filepath.WalkDir(infoDirectoryPath, func(infoPath string, dirEntry fs.DirEntry, err error) error {
 		if infoDirectoryPath == infoPath {
@@ -438,10 +453,27 @@ func queryTrashDir(targetMap map[string][]TrashedFileInfo, homeRelPaths, absPath
 		for i := 0; i < len(paths); i++ {
 			if originalPath == homeRelPaths[i] || originalPath == absPaths[i] {
 				trashedFile := filepath.Join(trashDir, "files", strings.TrimSuffix(filepath.Base(infoPath), ".trashinfo"))
-				trashInfo := wastebasket_nix.NewTrashedFileInfo(originalPath, deletionDate, infoPath, trashedFile, func() error {
-					return restore(infoPath, trashedFile, originalPath)
-				})
-				targetMap[paths[i]] = append(targetMap[paths[i]], trashInfo)
+				trashInfo := wastebasket_nix.NewTrashedFileInfo(
+					originalPath,
+					deletionDate,
+					infoPath,
+					trashedFile,
+					func() error {
+						return restore(infoPath, trashedFile, originalPath)
+					},
+					func() error {
+						if err := os.Remove(infoPath); err != nil {
+							return fmt.Errorf("error removing .trashinfo at '%s': %w", infoPath, err)
+						}
+
+						if err := os.Remove(trashedFile); err != nil {
+							return fmt.Errorf("error removing trashed file at '%s': %w", trashedFile, err)
+						}
+
+						return nil
+					},
+				)
+				result.Matches[paths[i]] = append(result.Matches[paths[i]], trashInfo)
 			}
 		}
 

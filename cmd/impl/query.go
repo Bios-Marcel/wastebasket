@@ -17,16 +17,51 @@ var QueryCmd = &cobra.Command{
 	// Currently none, as empty just clears every trashbin it can find.
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		result, err := wastebasket.Query(args...)
+		options := wastebasket.QueryOptions{}
+
+		glob, err := cmd.Flags().GetBool("glob")
 		if err != nil {
 			cmd.PrintErrln(err)
+			return
+		}
+
+		if glob {
+			options.Globs = args
 		} else {
-			for key, value := range result {
-				fmt.Println(key)
-				for _, value := range value {
-					fmt.Println(value.OriginalPath(), value.DeletionDate())
-				}
+			options.Paths = args
+		}
+
+		failfast, err := cmd.Flags().GetBool("failfast")
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+
+		options.FailFast = failfast
+
+		result, err := wastebasket.Query(options)
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+
+		for key, value := range result.Matches {
+			fmt.Println(key)
+			for _, value := range value {
+				fmt.Println(value.OriginalPath(), value.DeletionDate())
+			}
+		}
+
+		if len(result.Failures) > 0 {
+			cmd.PrintErrln("Failures:")
+			for _, failure := range result.Failures {
+				cmd.PrintErrf("\t%s\n", failure)
 			}
 		}
 	},
+}
+
+func init() {
+	QueryCmd.Flags().Bool("glob", false, "If set, the given paths will be treated as globs instead of normal paths.")
+	QueryCmd.Flags().Bool("failfast", false, "If set, the query will stop upon the first error.")
 }
