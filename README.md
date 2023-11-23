@@ -84,6 +84,8 @@ func main() {
 
 ## CLI usage
 
+**UNSTABLE, USE AT YOUR OWN RISK**
+
 Wastebasket can also be used as a commandline interface. You can build
 executables for each subcommand (such as `empty`) separately, or build
 `wastebasket` as a whole.
@@ -108,6 +110,20 @@ source <(wastebasket completion bash)
 
 Additionally, completion is supported for zsh, powershell and fish.
 For information, see [Cobra shell completions](https://github.com/spf13/cobra/blob/main/shell_completions.md)
+
+## Tests
+
+For windows, there is a utility that allows you to run linux or windows tests
+using containers. This prevents the utilitiy from accidentally deleting files or
+emptying your trashbin.
+
+Simply execute:
+
+```powershell
+test <linux|windows>
+```
+
+Note that this doesn't work when you are on linux.
 
 ## Benchmarks
 
