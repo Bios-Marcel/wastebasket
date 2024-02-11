@@ -1,6 +1,6 @@
 TODOs / FIXMEs not quite super important and maybe not yet issues:
 
-* Allow absence of sticky bit via option, if not supported) by FS
+* Allow absence of sticky bit via option, if not supported by FS
 * Check for permissions and set the correctly
 * Implement deletion across partitions if required somehow.
 * Decide whether we early exit on errors or try to delete all paths. Later, this can be a setting. The decision should be documented.

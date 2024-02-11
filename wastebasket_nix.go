@@ -1,4 +1,4 @@
-//go:build !windows && !darwin
+//go:build !windows && !darwin && !android && !ios && !js
 
 package wastebasket
 
