@@ -2,20 +2,10 @@
 
 package wastebasket
 
-import (
-	"os"
-)
-
 func Trash(paths ...string) error {
-	for _, path := range paths {
-		err := os.RemoveAll(path)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return ErrPlatformNotSupported
 }
 
 func Empty() error {
-	return nil
+	return ErrPlatformNotSupported
 }
