@@ -334,17 +334,6 @@ func Empty() error {
 }
 
 func Query(options QueryOptions) (*QueryResult, error) {
-	globs := make([]glob.Glob, 0, len(options.Globs))
-	for _, globString := range options.Globs {
-		compiled, err := glob.Compile(globString)
-		if err != nil {
-			return nil, fmt.Errorf("error compiling glob: %w", err)
-		}
-
-		globs = append(globs, compiled)
-	}
-	paths := options.Paths
-
 	cached, err := getCache()
 	if err != nil {
 		return nil, fmt.Errorf("error accessing cache: %w", err)
@@ -354,24 +343,34 @@ func Query(options QueryOptions) (*QueryResult, error) {
 		Matches: make(map[string][]TrashedFileInfo),
 	}
 
-	absPaths := make([]string, len(paths))
-	relPaths := make([]string, len(paths))
-	trashParent := filepath.Dir(cached.path)
-	for index, path := range paths {
-		absPath, err := filepath.Abs(path)
-		if err != nil {
-			return nil, err
+	var matcher func(string) (string, bool)
+	if len(options.Globs) > 0 {
+		globs := make([]glob.Glob, 0, len(options.Globs))
+		for _, globString := range options.Globs {
+			compiled, err := glob.Compile(globString)
+			if err != nil {
+				return nil, fmt.Errorf("error compiling glob: %w", err)
+			}
+
+			globs = append(globs, compiled)
 		}
-
-		absPaths[index] = absPath
-
-		relPaths[index], err = filepath.Rel(trashParent, absPath)
+		matcher = func(s string) (string, bool) {
+			for i, glob := range globs {
+				if glob.Match(s) {
+					return options.Globs[i], true
+				}
+			}
+			return "", false
+		}
+	} else {
+		trashParent := filepath.Dir(cached.path)
+		matcher, err = relativePathMatcher(trashParent, options.Paths)
 		if err != nil {
-			return nil, fmt.Errorf("error retrieving relative path: %w", err)
+			return nil, fmt.Errorf("error creating matcher: %w", err)
 		}
 	}
 
-	if err := queryTrashDir(result, relPaths, absPaths, paths, cached.dataHome, cached.path); err != nil {
+	if err := queryTrashDir(result, matcher, cached.dataHome, cached.path); err != nil {
 		return nil, fmt.Errorf("error querying home trash: %w", err)
 	}
 
@@ -389,17 +388,15 @@ func Query(options QueryOptions) (*QueryResult, error) {
 		// Previously generated relative paths are for the home
 		// trash, therefore we need to regenerate them for the topdir
 		// trash, but reuse the slice for less shitty performance.
-		for index := 0; index < len(paths); index++ {
-			relPaths[index], err = filepath.Rel(mount, absPaths[index])
-			if err != nil {
-				return nil, fmt.Errorf("error retrieving relative path: %w", err)
-			}
+		matcher, err = relativePathMatcher(mount, options.Paths)
+		if err != nil {
+			return nil, fmt.Errorf("error creating matcher: %w", err)
 		}
-		if err := queryTrashDir(result, relPaths, absPaths, paths, mount, filepath.Join(mount, ".Trash", u.Uid)); err != nil {
+		if err := queryTrashDir(result, matcher, mount, filepath.Join(mount, ".Trash", u.Uid)); err != nil {
 			return nil, fmt.Errorf("error querying mount trash: %w", err)
 		}
 
-		if err := queryTrashDir(result, relPaths, absPaths, paths, mount, filepath.Join(mount, fmt.Sprintf(".Trash-%s", u.Uid))); err != nil {
+		if err := queryTrashDir(result, matcher, mount, filepath.Join(mount, fmt.Sprintf(".Trash-%s", u.Uid))); err != nil {
 			return nil, fmt.Errorf("error querying mount trash: %w", err)
 		}
 	}
@@ -407,7 +404,34 @@ func Query(options QueryOptions) (*QueryResult, error) {
 	return result, nil
 }
 
-func queryTrashDir(result *QueryResult, homeRelPaths, absPaths, paths []string, baseDir, trashDir string) error {
+func relativePathMatcher(path string, search []string) (func(string) (string, bool), error) {
+	absPaths := make([]string, len(search))
+	relPaths := make([]string, len(search))
+	for index, path := range search {
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return nil, err
+		}
+
+		absPaths[index] = absPath
+
+		relPaths[index], err = filepath.Rel(path, absPath)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving relative path: %w", err)
+		}
+	}
+
+	return func(s string) (string, bool) {
+		for i, path := range search {
+			if absPaths[i] == s || relPaths[i] == s {
+				return path, true
+			}
+		}
+		return "", false
+	}, nil
+}
+
+func queryTrashDir(result *QueryResult, matcher func(string) (string, bool), baseDir, trashDir string) error {
 	infoDirectoryPath := filepath.Join(trashDir, "info")
 	err := filepath.WalkDir(infoDirectoryPath, func(infoPath string, dirEntry fs.DirEntry, err error) error {
 		if infoDirectoryPath == infoPath {
@@ -450,31 +474,29 @@ func queryTrashDir(result *QueryResult, homeRelPaths, absPaths, paths []string, 
 		}
 
 		// Hometrash supports both absolute paths and relative paths.
-		for i := 0; i < len(paths); i++ {
-			if originalPath == homeRelPaths[i] || originalPath == absPaths[i] {
-				trashedFile := filepath.Join(trashDir, "files", strings.TrimSuffix(filepath.Base(infoPath), ".trashinfo"))
-				trashInfo := wastebasket_nix.NewTrashedFileInfo(
-					originalPath,
-					deletionDate,
-					infoPath,
-					trashedFile,
-					func() error {
-						return restore(infoPath, trashedFile, originalPath)
-					},
-					func() error {
-						if err := os.Remove(infoPath); err != nil {
-							return fmt.Errorf("error removing .trashinfo at '%s': %w", infoPath, err)
-						}
+		if input, matches := matcher(originalPath); matches {
+			trashedFile := filepath.Join(trashDir, "files", strings.TrimSuffix(filepath.Base(infoPath), ".trashinfo"))
+			trashInfo := wastebasket_nix.NewTrashedFileInfo(
+				originalPath,
+				deletionDate,
+				infoPath,
+				trashedFile,
+				func() error {
+					return restore(infoPath, trashedFile, originalPath)
+				},
+				func() error {
+					if err := os.Remove(infoPath); err != nil {
+						return fmt.Errorf("error removing .trashinfo at '%s': %w", infoPath, err)
+					}
 
-						if err := os.Remove(trashedFile); err != nil {
-							return fmt.Errorf("error removing trashed file at '%s': %w", trashedFile, err)
-						}
+					if err := os.Remove(trashedFile); err != nil {
+						return fmt.Errorf("error removing trashed file at '%s': %w", trashedFile, err)
+					}
 
-						return nil
-					},
-				)
-				result.Matches[paths[i]] = append(result.Matches[paths[i]], trashInfo)
-			}
+					return nil
+				},
+			)
+			result.Matches[input] = append(result.Matches[input], trashInfo)
 		}
 
 		return nil
