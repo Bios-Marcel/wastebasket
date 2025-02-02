@@ -6,4 +6,5 @@ empty
 query
 restore
 wastebasket
+wastebasket.test
 *.exe
