@@ -19,6 +19,7 @@ import (
 	"github.com/gobwas/glob"
 )
 
+// RFC3339 is the same as time.RFC3339 but without timezones.
 const RFC3339 string = "2006-01-02T15:04:05"
 
 // cachedInformation makes sure we don't constantly check for the
@@ -404,7 +405,7 @@ func Query(options QueryOptions) (*QueryResult, error) {
 	return result, nil
 }
 
-func relativePathMatcher(path string, search []string) (func(string) (string, bool), error) {
+func relativePathMatcher(base string, search []string) (func(string) (string, bool), error) {
 	absPaths := make([]string, len(search))
 	relPaths := make([]string, len(search))
 	for index, path := range search {
@@ -415,7 +416,7 @@ func relativePathMatcher(path string, search []string) (func(string) (string, bo
 
 		absPaths[index] = absPath
 
-		relPaths[index], err = filepath.Rel(path, absPath)
+		relPaths[index], err = filepath.Rel(base, absPath)
 		if err != nil {
 			return nil, fmt.Errorf("error retrieving relative path: %w", err)
 		}
@@ -481,8 +482,8 @@ func queryTrashDir(result *QueryResult, matcher func(string) (string, bool), bas
 				deletionDate,
 				infoPath,
 				trashedFile,
-				func() error {
-					return restore(infoPath, trashedFile, originalPath)
+				func(force bool) error {
+					return restore(infoPath, trashedFile, originalPath, force)
 				},
 				func() error {
 					if err := os.Remove(infoPath); err != nil {
@@ -513,7 +514,16 @@ func queryTrashDir(result *QueryResult, matcher func(string) (string, bool), bas
 // It's probably preferable not to have a public Restore(...) function, as you
 // mostly will have to query first in order to delete anyways. Even then, a
 // restore with multiple files versions to restore would complicate the API.
-func restore(infoPath, trahedFilePath, originalPath string) error {
+func restore(infoPath, trahedFilePath, originalPath string, force bool) error {
+	if !force {
+		info, err := os.Stat(originalPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("error checking whether file exists: %w", err)
+		}
+		if info != nil {
+			return ErrAlreadyExists
+		}
+	}
 	if err := os.Rename(trahedFilePath, originalPath); err != nil {
 		// FIXME Use root error type that is public API
 		return fmt.Errorf("error restoring file '%s' to '%s'; .trashinfo path: '%s'", trahedFilePath, originalPath, infoPath)

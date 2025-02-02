@@ -6,14 +6,14 @@ type TrashedFileInfo struct {
 	fileSize     uint64
 	originalPath string
 	deletionDate time.Time
-	restoreFunc  func() error
+	restoreFunc  func(force bool) error
 	deleteFunc   func() error
 }
 
 func NewTrashedFileInfo(
 	fileSize uint64,
 	originalPath string, deletionDate time.Time,
-	restore func() error,
+	restore func(force bool) error,
 	deleteFunc func() error,
 ) *TrashedFileInfo {
 	return &TrashedFileInfo{
@@ -37,8 +37,8 @@ func (t TrashedFileInfo) DeletionDate() time.Time {
 	return t.deletionDate
 }
 
-func (t TrashedFileInfo) Restore() error {
-	return t.restoreFunc()
+func (t TrashedFileInfo) Restore(force bool) error {
+	return t.restoreFunc(force)
 }
 
 func (t TrashedFileInfo) Delete() error {

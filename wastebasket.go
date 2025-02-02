@@ -13,7 +13,7 @@ type TrashedFileInfo interface {
 	// DeletionDate is the deletion date in the computers local timezone.
 	DeletionDate() time.Time
 	// Restore will attempt restoring the file to its previous location.
-	Restore() error
+	Restore(force bool) error
 	// Delete will permanently deleting the underlying file. Note that we do not
 	// zero the respective bytes on the disk.
 	Delete() error
@@ -45,7 +45,10 @@ type QueryOptions struct {
 	FailFast bool
 }
 
-var ErrOnlyOneOfGlobsOrPaths = errors.New("only one of the options .Globs or .Paths must be set.")
+var (
+	ErrAlreadyExists         = errors.New("couldn't restore file, already exists, apply force")
+	ErrOnlyOneOfGlobsOrPaths = errors.New("only one of the options .Globs or .Paths must be set")
+)
 
 func (options QueryOptions) validate() error {
 	if len(options.Globs) > 0 && len(options.Paths) > 0 {

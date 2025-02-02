@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -168,23 +169,67 @@ func Test_Query_Restore_Homedir(t *testing.T) {
 		return
 	}
 
-	path := filepath.Join(home, "path.txt")
-	defer writeTestData(t, path)()
-	assertExists(t, path)
+	t.Run("single_file", func(t *testing.T) {
+		path := filepath.Join(home, "path.txt")
+		t.Cleanup(writeTestData(t, path))
+		assertExists(t, path)
 
-	if err := wastebasket.Trash(path); err != nil {
-		t.Errorf("Error trashing file. (%s)", err.Error())
-	}
-	assertNotExists(t, path)
+		if err := wastebasket.Trash(path); err != nil {
+			t.Errorf("Error trashing file. (%s)", err.Error())
+		}
+		assertNotExists(t, path)
 
-	result, err := wastebasket.Query(wastebasket.QueryOptions{Paths: []string{path}})
-	if assert.NoError(t, err) {
-		if assert.Len(t, result.Matches[path], 1) {
-			if assert.NoError(t, result.Matches[path][0].Restore()) {
-				assertExists(t, path)
+		result, err := wastebasket.Query(wastebasket.QueryOptions{Paths: []string{path}})
+		if assert.NoError(t, err) {
+			if assert.Len(t, result.Matches[path], 1) {
+				if assert.NoError(t, result.Matches[path][0].Restore(false)) {
+					assertExists(t, path)
+				}
 			}
 		}
-	}
+	})
+
+	// Makes sure restore requires force for overwrite.
+	t.Run("same_file_twice", func(t *testing.T) {
+		path := filepath.Join(home, "path.txt")
+
+		for i := range 2 {
+			t.Cleanup(writeTestData(t, strconv.FormatInt(int64(i), 10), path))
+			assertExists(t, path)
+			if err := wastebasket.Trash(path); err != nil {
+				t.Errorf("Error trashing file. (%s)", err.Error())
+			}
+			assertNotExists(t, path)
+		}
+
+		result, err := wastebasket.Query(wastebasket.QueryOptions{Paths: []string{path}})
+		if assert.NoError(t, err) {
+			if assert.Len(t, result.Matches[path], 2) {
+				matchOne := result.Matches[path][0]
+				if assert.NoError(t, result.Matches[path][0].Restore(false)) {
+					f, err := os.ReadFile(matchOne.OriginalPath())
+					if assert.NoError(t, err) {
+						assert.Equal(t, "0", string(f))
+					}
+					assertExists(t, path)
+				}
+				if assert.Error(t, result.Matches[path][1].Restore(false), wastebasket.ErrAlreadyExists) {
+					f, err := os.ReadFile(matchOne.OriginalPath())
+					if assert.NoError(t, err) {
+						assert.Equal(t, "0", string(f))
+					}
+					assertExists(t, path)
+				}
+				if assert.NoError(t, result.Matches[path][1].Restore(true)) {
+					f, err := os.ReadFile(matchOne.OriginalPath())
+					if assert.NoError(t, err) {
+						assert.Equal(t, "1", string(f))
+					}
+					assertExists(t, path)
+				}
+			}
+		}
+	})
 }
 
 func assertExists(t *testing.T, path string) {
@@ -210,6 +255,10 @@ func trash(paths ...string) func() error {
 }
 
 func writeTestData(t *testing.T, paths ...string) func() {
+	return writeTestDataWith(t, "test", paths...)
+}
+
+func writeTestDataWith(t *testing.T, content string, paths ...string) func() {
 	t.Helper()
 
 	for _, path := range paths {
@@ -217,7 +266,7 @@ func writeTestData(t *testing.T, paths ...string) func() {
 		if strings.HasSuffix(path, "/") {
 			err = os.Mkdir(path, os.ModePerm)
 		} else {
-			err = os.WriteFile(path, []byte("test"), os.ModePerm)
+			err = os.WriteFile(path, []byte(content), os.ModePerm)
 		}
 		if err != nil {
 			t.Errorf("Error writing test data. (%s)", err.Error())

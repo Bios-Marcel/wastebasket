@@ -48,7 +48,7 @@ var QueryCmd = &cobra.Command{
 		for key, value := range result.Matches {
 			fmt.Println(key)
 			for _, value := range value {
-				fmt.Println(value.OriginalPath(), value.DeletionDate())
+				fmt.Printf("\t%s %s\n", value.OriginalPath(), value.DeletionDate())
 			}
 		}
 

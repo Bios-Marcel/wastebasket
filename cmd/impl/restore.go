@@ -1,6 +1,8 @@
 package impl
 
 import (
+	"fmt"
+
 	"github.com/Bios-Marcel/wastebasket/v2"
 	"github.com/spf13/cobra"
 )
@@ -29,6 +31,12 @@ var RestoreCmd = &cobra.Command{
 			options.Paths = args
 		}
 
+		force, err := cmd.Flags().GetBool("force")
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+
 		failfast, err := cmd.Flags().GetBool("failfast")
 		if err != nil {
 			cmd.PrintErrln(err)
@@ -48,10 +56,10 @@ var RestoreCmd = &cobra.Command{
 				} else if len(matches) > 1 {
 					cmd.PrintErrf("multiple matching files found for '%s'\n", arg)
 					for _, match := range matches {
-						cmd.PrintErrf("\t'%s'\n", match)
+						fmt.Printf("\t%s %s\n", match.OriginalPath(), match.DeletionDate())
 					}
 				} else {
-					if err := matches[0].Restore(); err != nil {
+					if err := matches[0].Restore(force); err != nil {
 						cmd.PrintErrf("error restoring '%s':\n\t%s\n", arg, err)
 					}
 				}
@@ -63,4 +71,5 @@ var RestoreCmd = &cobra.Command{
 func init() {
 	RestoreCmd.Flags().Bool("glob", false, "If set, the given paths will be treated as globs instead of normal paths.")
 	RestoreCmd.Flags().Bool("failfast", false, "If set, the query will stop upon the first error.")
+	RestoreCmd.Flags().Bool("force", false, "If set, restore will overwrite existing files.")
 }
