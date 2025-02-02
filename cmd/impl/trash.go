@@ -8,7 +8,6 @@ import (
 var TrashCmd = &cobra.Command{
 	Use:   "trash files...",
 	Short: "trash moves the specified files into the trashbin",
-	Long:  "TODO",
 	// If used as root cmd, these will be ignored.
 	SuggestFor: []string{"delete", "remove", "recycle"},
 	Args:       cobra.MinimumNArgs(1),

@@ -9,8 +9,7 @@ import (
 
 var RestoreCmd = &cobra.Command{
 	Use:   "restore files...",
-	Short: "TODO",
-	Long:  "TODO",
+	Short: "Restores the specified files to their original locations",
 	// If used as root cmd, these will be ignored.
 	SuggestFor: []string{"recover"},
 	Aliases:    []string{"recover"},

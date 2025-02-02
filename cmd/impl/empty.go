@@ -8,7 +8,6 @@ import (
 var EmptyCmd = &cobra.Command{
 	Use:   "empty",
 	Short: "empty clears all trashbins that can be found",
-	Long:  "TODO",
 	// If used as root cmd, these will be ignored.
 	SuggestFor: []string{"clear"},
 	// Currently none, as empty just clears every trashbin it can find.

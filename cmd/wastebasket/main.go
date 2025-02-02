@@ -11,7 +11,6 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:     "wastebasket",
 		Short:   "wastebasket allows interaction with the system trashbin",
-		Long:    "TODO",
 		Example: `wastebasket trash file_1.txt file_2.txt`,
 	}
 	rootCmd.AddCommand(impl.TrashCmd)
