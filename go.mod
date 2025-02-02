@@ -1,6 +1,6 @@
 module github.com/Bios-Marcel/wastebasket/v2
 
-go 1.18
+go 1.23.4
 
 require (
 	github.com/spf13/cobra v1.6.1
