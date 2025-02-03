@@ -21,6 +21,9 @@ requires a very complex solution, embedding an objective C runtime.
 If you need basic MacOS support, use `github.com/Bios-Marcel/wastebasket`.
 This will limit you to trashing files and emptying the trashbin.
 
+IF you are willing to contribute and potentially maintain a proper MacOS
+implementation, I'd be glad to accept a PR.
+
 ## Documentation
 
 Further documentation can be found at [/docs](/docs).
@@ -29,8 +32,12 @@ Further documentation can be found at [/docs](/docs).
 
 ### Golang
 
-The library supports at least the 3 latest major Golang versions. Depending on
-your OS it might still work on an older version, but there are no guarantees.
+For `v2`, go 1.23.4 or newer is required. For go 1.18 and up use the old
+implementation.
+
+### MacOS
+
+Not supported for now.
 
 ### Windows
 
@@ -40,8 +47,8 @@ There are no dependencies, it depends on the Shell32 API built into Windows.
 
 ### Linux (Unix)
 
-There are two (well, four) options you've got here. Wastebasket offers a native
-golang implementation of the [FreeDesktop Trash specification](https://specifications.freedesktop.org/trash-spec/trashspec-latest.html).
+There are no dependencies, as Wastebasket offers a native golang implementation
+of the [FreeDesktop Trash specification](https://specifications.freedesktop.org/trash-spec/trashspec-latest.html).
 
 Additionally, the custom implementation should also work for systems such
 as BSD and its derivatives. However, this has not been tested and I do not
@@ -81,6 +88,9 @@ func main() {
     wastebasket.Empty()
 }
 ```
+
+Make sure to check for `ErrPlatformNotSupported` if you are deploying to MacOS
+or nieche systems.
 
 ## CLI usage
 

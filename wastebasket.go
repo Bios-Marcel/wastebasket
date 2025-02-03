@@ -39,8 +39,11 @@ type QueryOptions struct {
 }
 
 var (
-	ErrAlreadyExists      = errors.New("couldn't restore file, already exists, apply force")
-	ErrOnlyOneGlobAllowed = errors.New("only one glob is allowed")
+	// ErrPlatformNotSupported indicates that the current platform does not
+	// suport trashing files or the API isn't fully implemented.
+	ErrPlatformNotSupported = errors.New("platform not supported")
+	ErrAlreadyExists        = errors.New("couldn't restore file, already exists, apply force")
+	ErrOnlyOneGlobAllowed   = errors.New("only one glob is allowed")
 )
 
 func (options QueryOptions) validate() error {
