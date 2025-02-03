@@ -1,6 +1,10 @@
 package wastebasket_nix
 
-import "time"
+import (
+	"fmt"
+	"hash/fnv"
+	"time"
+)
 
 type TrashedFileInfo struct {
 	originalPath string
@@ -25,6 +29,12 @@ func NewTrashedFileInfo(
 		restoreFunc:  restoreFunc,
 		deleteFunc:   deleteFunc,
 	}
+}
+
+func (t TrashedFileInfo) UniqueIdentifier() string {
+	hash := fnv.New64()
+	hash.Write([]byte(t.infoPath))
+	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
 // OriginalPath is the files path before it was deleted.

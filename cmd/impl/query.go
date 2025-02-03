@@ -15,7 +15,7 @@ var QueryCmd = &cobra.Command{
 	SuggestFor: []string{"lookup"},
 	Aliases:    []string{"lookup"},
 	// Currently none, as empty just clears every trashbin it can find.
-	Args: cobra.MinimumNArgs(1),
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		options := wastebasket.QueryOptions{}
 
@@ -25,19 +25,8 @@ var QueryCmd = &cobra.Command{
 			return
 		}
 
-		if glob {
-			options.Globs = args
-		} else {
-			options.Paths = args
-		}
-
-		failfast, err := cmd.Flags().GetBool("failfast")
-		if err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-
-		options.FailFast = failfast
+		options.Glob = glob
+		options.Search = args
 
 		result, err := wastebasket.Query(options)
 		if err != nil {
@@ -45,17 +34,9 @@ var QueryCmd = &cobra.Command{
 			return
 		}
 
-		for key, value := range result.Matches {
-			fmt.Println(key)
+		for _, value := range result.Matches {
 			for _, value := range value {
-				fmt.Printf("\t%s %s\n", value.OriginalPath(), value.DeletionDate())
-			}
-		}
-
-		if len(result.Failures) > 0 {
-			cmd.PrintErrln("Failures:")
-			for _, failure := range result.Failures {
-				cmd.PrintErrf("\t%s\n", failure)
+				fmt.Printf("%s %s\n", value.OriginalPath(), value.DeletionDate())
 			}
 		}
 	},
@@ -63,5 +44,4 @@ var QueryCmd = &cobra.Command{
 
 func init() {
 	QueryCmd.Flags().Bool("glob", false, "If set, the given paths will be treated as globs instead of normal paths.")
-	QueryCmd.Flags().Bool("failfast", false, "If set, the query will stop upon the first error.")
 }

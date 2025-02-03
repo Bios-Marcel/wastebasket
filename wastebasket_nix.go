@@ -335,6 +335,10 @@ func Empty() error {
 }
 
 func Query(options QueryOptions) (*QueryResult, error) {
+	if err := options.validate(); err != nil {
+		return nil, fmt.Errorf("error validating options: %w", err)
+	}
+
 	cached, err := getCache()
 	if err != nil {
 		return nil, fmt.Errorf("error accessing cache: %w", err)
@@ -345,27 +349,21 @@ func Query(options QueryOptions) (*QueryResult, error) {
 	}
 
 	var matcher func(string) (string, bool)
-	if len(options.Globs) > 0 {
-		globs := make([]glob.Glob, 0, len(options.Globs))
-		for _, globString := range options.Globs {
-			compiled, err := glob.Compile(globString)
-			if err != nil {
-				return nil, fmt.Errorf("error compiling glob: %w", err)
-			}
-
-			globs = append(globs, compiled)
+	if options.Glob {
+		globString := options.Search[0]
+		compiled, err := glob.Compile(globString)
+		if err != nil {
+			return nil, fmt.Errorf("error compiling glob: %w", err)
 		}
 		matcher = func(s string) (string, bool) {
-			for i, glob := range globs {
-				if glob.Match(s) {
-					return options.Globs[i], true
-				}
+			if compiled.Match(s) {
+				return globString, true
 			}
 			return "", false
 		}
 	} else {
 		trashParent := filepath.Dir(cached.path)
-		matcher, err = relativePathMatcher(trashParent, options.Paths)
+		matcher, err = relativePathMatcher(trashParent, options.Search)
 		if err != nil {
 			return nil, fmt.Errorf("error creating matcher: %w", err)
 		}
@@ -389,7 +387,7 @@ func Query(options QueryOptions) (*QueryResult, error) {
 		// Previously generated relative paths are for the home
 		// trash, therefore we need to regenerate them for the topdir
 		// trash, but reuse the slice for less shitty performance.
-		matcher, err = relativePathMatcher(mount, options.Paths)
+		matcher, err = relativePathMatcher(mount, options.Search)
 		if err != nil {
 			return nil, fmt.Errorf("error creating matcher: %w", err)
 		}

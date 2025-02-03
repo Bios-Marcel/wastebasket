@@ -1,9 +1,13 @@
 package wastebasket_windows
 
-import "time"
+import (
+	"hash/fnv"
+	"time"
+)
 
 type TrashedFileInfo struct {
 	fileSize     uint64
+	infoPath     string
 	originalPath string
 	deletionDate time.Time
 	restoreFunc  func(force bool) error
@@ -12,12 +16,13 @@ type TrashedFileInfo struct {
 
 func NewTrashedFileInfo(
 	fileSize uint64,
-	originalPath string, deletionDate time.Time,
+	infoPath, originalPath string, deletionDate time.Time,
 	restore func(force bool) error,
 	deleteFunc func() error,
 ) *TrashedFileInfo {
 	return &TrashedFileInfo{
 		fileSize:     fileSize,
+		infoPath:     infoPath,
 		originalPath: originalPath,
 		deletionDate: deletionDate,
 		restoreFunc:  restore,
@@ -27,6 +32,11 @@ func NewTrashedFileInfo(
 
 func (t TrashedFileInfo) FileSize() uint64 {
 	return t.fileSize
+}
+
+func (t TrashedFileInfo) UniqueIdentifier() string {
+	hash := fnv.New64()
+	return string(hash.Sum([]byte(t.infoPath)))
 }
 
 func (t TrashedFileInfo) OriginalPath() string {

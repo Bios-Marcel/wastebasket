@@ -151,13 +151,6 @@ func Empty() error {
 	return nil
 }
 
-type Report struct {
-	Data map[string][]TrashedFileInfo
-	// Failures are errors that occured, but won't prevent the entire operation
-	// from failing. FIXME How does it work with failfast.
-	Failures []error
-}
-
 // The info files have the following structure:
 // 8 Byte header
 // 8 Byte for file size
@@ -177,33 +170,18 @@ func Query(options QueryOptions) (*QueryResult, error) {
 		return nil, fmt.Errorf("error querying SID of windows user: %w", err)
 	}
 
-	globs := make(map[string]glob.Glob, len(options.Globs))
-	for _, globString := range options.Globs {
-		compiled, err := glob.Compile(globString)
-		if err != nil {
-			return nil, fmt.Errorf("error compiling glob: %w", err)
-		}
-
-		globs[globString] = compiled
-	}
-	paths := options.Paths
-
 	// We map the paths per volume, assuming that each volume only contains
 	// files from that volume. Additionally, we make all paths
 	// absolute, defaulting to the volume of the current working directory.
 	volumeMapping := make(map[string][][2]string)
-
-	if len(paths) > 0 {
-		for _, path := range paths {
-			absPath, err := filepath.Abs(path)
-			if err != nil {
-				return nil, fmt.Errorf("error retrieving absolute filepath: %w", err)
-			}
-
-			volumeName := filepath.VolumeName(absPath)
-			volumeMapping[volumeName] = append(volumeMapping[volumeName], [...]string{absPath, path})
+	var globCompiled glob.Glob
+	if options.Glob {
+		globString := options.Search[0]
+		globCompiled, err = glob.Compile(globString)
+		if err != nil {
+			return nil, fmt.Errorf("error compiling glob: %w", err)
 		}
-	} else {
+
 		// FIXME Figure out what exactly counts as a logical drive and whether
 		// we need to potentially filter out network drives and such. Do network
 		// drives even support trashing?
@@ -217,6 +195,16 @@ func Query(options QueryOptions) (*QueryResult, error) {
 		s := string(utf16.Decode(a))
 		for _, volume := range strings.Split(strings.TrimRight(s, "\x00"), "\x00") {
 			volumeMapping[volume] = nil
+		}
+	} else {
+		for _, path := range options.Search {
+			absPath, err := filepath.Abs(path)
+			if err != nil {
+				return nil, fmt.Errorf("error retrieving absolute filepath: %w", err)
+			}
+
+			volumeName := filepath.VolumeName(absPath)
+			volumeMapping[volumeName] = append(volumeMapping[volumeName], [...]string{absPath, path})
 		}
 	}
 
@@ -237,12 +225,7 @@ func Query(options QueryOptions) (*QueryResult, error) {
 			bytes, err := os.ReadFile(infoFile)
 			if err != nil {
 				err := fmt.Errorf("error reading info file: %w", err)
-				if options.FailFast {
-					return nil, err
-				}
-
-				result.Failures = append(result.Failures, err)
-				continue
+				return nil, err
 			}
 
 			trashedFile := fmt.Sprintf("%s\\$R%s", rootTrash, strings.TrimPrefix(filepath.Base(infoFile), "$I"))
@@ -258,23 +241,19 @@ func Query(options QueryOptions) (*QueryResult, error) {
 			var originalFilepath string
 			if pathBytes, err := pathDecoder.Bytes(bytes[28 : len(bytes)-2]); err != nil {
 				err := fmt.Errorf("error decoding path: %w", err)
-				if options.FailFast {
-					return nil, err
-				}
-
-				result.Failures = append(result.Failures, err)
+				return nil, err
 			} else {
 				originalFilepath = string(pathBytes)
 			}
 
 			// Since globs and paths are mutually exclusive, at best one of those
 			// loops will match and we don't need to run both.
-			for globString, globCompiled := range globs {
+			if globCompiled != nil {
 				if globCompiled.Match(originalFilepath) {
 					info := createTrashedFile(infoFile, trashedFile, originalFilepath, bytes)
-					result.Matches[globString] = append(result.Matches[globString], info)
-					continue INFO_LOOP
+					result.Matches[options.Search[0]] = append(result.Matches[options.Search[0]], info)
 				}
+				continue INFO_LOOP
 			}
 			for _, path := range paths {
 				if path[0] == originalFilepath {
@@ -314,6 +293,7 @@ func createTrashedFile(infoFile, trashedFile, originalFilepath string, infoData 
 	deleteFunc := createDelete(infoFile, trashedFile)
 	return wastebasket_windows.NewTrashedFileInfo(
 		fileSize,
+		infoFile,
 		originalFilepath,
 		time.Unix(0, deletionTime.Nanoseconds()),
 		recoverFunc,
@@ -335,8 +315,17 @@ func createDelete(infoFile, trashedFile string) func() error {
 	}
 }
 
-func createRecover(infoFile, trashedFile, originalFile string) func() error {
-	return func() error {
+func createRecover(infoFile, trashedFile, originalFile string) func(force bool) error {
+	return func(force bool) error {
+		if !force {
+			info, err := os.Stat(originalFile)
+			if err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("error checking whether file exists: %w", err)
+			}
+			if info != nil {
+				return ErrAlreadyExists
+			}
+		}
 		err := os.Rename(trashedFile, originalFile)
 		if err != nil {
 			return fmt.Errorf("error restoring file: %w", err)

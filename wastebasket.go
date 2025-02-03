@@ -17,6 +17,9 @@ type TrashedFileInfo interface {
 	// Delete will permanently deleting the underlying file. Note that we do not
 	// zero the respective bytes on the disk.
 	Delete() error
+	// UniqueIdentifier can be used to uniquely identify a file if the path and
+	// deletion date are exactly the same. This CAN be useful file restoration.
+	UniqueIdentifier() string
 }
 
 type QueryResult struct {
@@ -25,34 +28,24 @@ type QueryResult struct {
 	// multiple times and a glob can match multiple files. Therefore, expect
 	// multiple entries in both scenarios.
 	Matches map[string][]TrashedFileInfo
-	// Failures are non-fatal errors that occured during the query. This can
-	// for example be a failure of reading a certain file from the trashbin,
-	// which however won't prevent us from reading other files. This field is
-	// only populated if [QueryOptions.FailFast] is set to `false`.
-	Failures []error
 }
 
 // QueryOptions allows to configure the Query-Call. Options Globs and Paths
 // aren't allowed to both be set.
 type QueryOptions struct {
-	Globs []string
-	// Paths can be relative or absolute.
-	Paths []string
-
-	// FailFast will insantly cause the Query call to return if an error occurs.
-	// This goes for both errors that occur working on a specifc trashed file
-	// and errors that occur for preparing the querying.
-	FailFast bool
+	Glob bool
+	// Search can be relative or absolute.
+	Search []string
 }
 
 var (
-	ErrAlreadyExists         = errors.New("couldn't restore file, already exists, apply force")
-	ErrOnlyOneOfGlobsOrPaths = errors.New("only one of the options .Globs or .Paths must be set")
+	ErrAlreadyExists      = errors.New("couldn't restore file, already exists, apply force")
+	ErrOnlyOneGlobAllowed = errors.New("only one glob is allowed")
 )
 
 func (options QueryOptions) validate() error {
-	if len(options.Globs) > 0 && len(options.Paths) > 0 {
-		return ErrOnlyOneOfGlobsOrPaths
+	if options.Glob && len(options.Search) > 1 {
+		return ErrOnlyOneGlobAllowed
 	}
 	return nil
 }
