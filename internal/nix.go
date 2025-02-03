@@ -96,6 +96,9 @@ RETRY:
 				// A non-error basically which tells you to try again.
 				// Use goto in order to prevent growing stack.
 				goto RETRY
+			case unix.EACCES:
+				// Missing permissions, so we shouldn't clear it.
+				return nil
 			case unix.ENOENT:
 				// Does not exist.
 				return nil
