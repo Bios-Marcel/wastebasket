@@ -18,19 +18,19 @@ jobs:
       - name: Download linux artifact
         uses: dawidd6/action-download-artifact@v6
         with:
-          workflow: test-and-build.yml
+          workflow: test.yml
           name: wastebasket-linux-x64
 
       - name: Download macos artifact
         uses: dawidd6/action-download-artifact@v6
         with:
-          workflow: test-and-build.yml
+          workflow: test.yml
           name: wastebasket-macos-x64
 
       - name: Download windows artifact
         uses: dawidd6/action-download-artifact@v6
         with:
-          workflow: test-and-build.yml
+          workflow: test.yml
           name: wastebasket-x64.exe
 
       - name: Create release
