@@ -1,4 +1,4 @@
-//go:build !freebsd && !openbsd && !netbsd && !linux && !windows
+//go:build !freebsd && !openbsd && !netbsd && !linux && !windows && !darwin
 
 package wastebasket
 

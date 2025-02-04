@@ -11,19 +11,6 @@
 Wastebasket is a go library / CLI tool allowing you to interact with your
 system trashbin. It supports nix-systems (such as Linux and BSD) and Windows.
 
-## v2
-
-Note that `github.com/Bios-Marcel/wastebasket/v2` drops support for MacOS. I
-simply can't be bothered maintaining it, as the performance is horrible and
-adding features is hard to test. Additionally, a "proper" implementation
-requires a very complex solution, embedding an objective C runtime.
-
-If you need basic MacOS support, use `github.com/Bios-Marcel/wastebasket`.
-This will limit you to trashing files and emptying the trashbin.
-
-IF you are willing to contribute and potentially maintain a proper MacOS
-implementation, I'd be glad to accept a PR.
-
 ## Documentation
 
 Further documentation can be found at [/docs](/docs).
@@ -37,7 +24,20 @@ implementation.
 
 ### MacOS
 
-Not supported for now.
+Note that `github.com/Bios-Marcel/wastebasket/v2` only supports MacOS patially.
+I simply can't be bothered maintaining it, as the performance is horrible and
+adding features is hard to test. Additionally, a "proper" implementation
+requires a very complex solution, that according to research won't work
+reliable. For now, we are stuck calling finder.
+
+It's recommended to not call the `Trash` functon in a tight loop, put some
+`time.Sleep` calls, as the finder noise will sound very painful and cause your
+device to lag.
+
+Restoring and querying files is not possible as of now.
+
+IF you are willing to contribute and potentially maintain a proper MacOS
+implementation, I'd be glad to accept a PR.
 
 ### Windows
 
