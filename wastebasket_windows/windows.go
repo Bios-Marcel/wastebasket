@@ -1,6 +1,7 @@
 package wastebasket_windows
 
 import (
+	"fmt"
 	"hash/fnv"
 	"time"
 )
@@ -36,7 +37,8 @@ func (t TrashedFileInfo) FileSize() uint64 {
 
 func (t TrashedFileInfo) UniqueIdentifier() string {
 	hash := fnv.New64()
-	return string(hash.Sum([]byte(t.infoPath)))
+	hash.Write([]byte(t.infoPath))
+	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
 func (t TrashedFileInfo) OriginalPath() string {
