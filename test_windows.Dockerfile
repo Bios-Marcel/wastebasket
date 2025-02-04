@@ -3,6 +3,6 @@
 FROM mcr.microsoft.com/windows/servercore:ltsc2022-amd64
 
 WORKDIR /test
-copy wastebasket.test.exe ./test.exe
+COPY wastebasket.test.exe ./test.exe
 RUN test.exe
 
