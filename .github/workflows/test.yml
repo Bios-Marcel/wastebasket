@@ -1,4 +1,4 @@
-name: Test
+name: Build
 
 on: [push, pull_request]
 
@@ -6,8 +6,13 @@ jobs:
   test:
     strategy:
       matrix:
-        platform: [windows-latest, ubuntu-latest]
-        go: ['1.23.x']
+        include:
+          - platform: windows-latest
+            binary_name: wastebasket-x64.exe
+          - platform: ubuntu-latest
+            binary_name: wastebasket-linux-x64
+          - platform: macos-latest
+            binary_name: wastebasket-macos-x64
 
     runs-on: ${{ matrix.platform }}
 
@@ -17,9 +22,20 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version: '1.23.x'
 
       - name: Run tests
         shell: bash
         run: |
           go test -race -v -covermode=atomic ./...
+
+      - name: Build artifact
+        shell: bash
+        run: |
+          go build -trimpath -ldflags "-w -s" -o ${{ matrix.binary_name }} ./cmd/wastebasket
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary_name }}
+          path: ./${{ matrix.binary_name }}
